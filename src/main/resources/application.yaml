@@ -1,0 +1,19 @@
+ktor:
+  deployment:
+    host: 0.0.0.0
+    port: 8080
+  application:
+    modules:
+      - com.lalkalol.config.HttpKt.configureHttp
+      - com.lalkalol.config.DIKt.configureDependencyInjection
+      - com.lalkalol.config.DatabaseKt.configureDatabase
+      - com.lalkalol.config.TemplatesKt.configureTemplates
+      - com.lalkalol.config.SessionsKt.configureSessions
+      - com.lalkalol.web.WebSocketsKt.configureWebSockets
+      - com.lalkalol.config.RoutingKt.configureRouting
+
+database:
+  url: "jdbc:h2:mem:codenames;DB_CLOSE_DELAY=-1;MODE=PostgreSQL"
+  driver: org.h2.Driver
+  user: sa
+  password: ""

@@ -1,0 +1,418 @@
+openapi: "3.0.3"
+info:
+  title: Codenames
+  description: |
+    HTTP-интерфейс мультиплеерной игры Codenames.
+
+    Страницы рендерятся на сервере (FreeMarker). Формы отправляют
+    `application/x-www-form-urlencoded`. После входа в комнату клиент
+    получает cookie `player_session`.
+
+    Состояние игры в реальном времени синхронизируется через WebSocket
+    `GET /ws/rooms/{code}` (JSON-сообщения, см. схемы WsStateMessage и WsErrorMessage).
+  version: "1.0.0"
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: pages
+    description: Server-rendered HTML pages
+  - name: rooms
+    description: Room lifecycle (create, join, lobby, start)
+  - name: static
+    description: CSS and JavaScript assets
+
+paths:
+  /:
+    get:
+      tags: [pages]
+      summary: Home page
+      description: Create or join a room.
+      parameters:
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional error message shown on the page.
+      responses:
+        "200":
+          description: HTML home page
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /rooms:
+    post:
+      tags: [rooms]
+      summary: Create a room
+      description: Creates a new room and sets a session cookie for the host.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [name, language]
+              properties:
+                name:
+                  type: string
+                  maxLength: 64
+                  description: Display name of the host player.
+                language:
+                  $ref: "#/components/schemas/Language"
+      responses:
+        "302":
+          description: Redirect to `/rooms/{code}` on success, or to `/` with `error` query param on validation failure.
+
+  /rooms/join:
+    post:
+      tags: [rooms]
+      summary: Join a room from the home page
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [code, name]
+              properties:
+                code:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+                  pattern: "^[A-Za-z0-9]{4}$"
+                name:
+                  type: string
+                  maxLength: 64
+      responses:
+        "302":
+          description: Redirect to `/rooms/{code}` on success or `/` with error.
+
+  /rooms/{code}:
+    get:
+      tags: [rooms]
+      summary: Room lobby or join form
+      description: |
+        Without a valid session cookie — join form.
+        With session — lobby (team/role selection); redirects to game if already started.
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: HTML lobby or join page
+          content:
+            text/html:
+              schema:
+                type: string
+        "404":
+          description: Room not found
+
+  /rooms/{code}/join:
+    post:
+      tags: [rooms]
+      summary: Join a room by direct link
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 64
+      responses:
+        "302":
+          description: Redirect to lobby on success
+        "200":
+          description: Join form with error message
+
+  /rooms/{code}/role:
+    post:
+      tags: [rooms]
+      summary: Choose team and role
+      description: Requires session cookie. Only allowed while room is in LOBBY status.
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [team, role]
+              properties:
+                team:
+                  $ref: "#/components/schemas/Team"
+                role:
+                  $ref: "#/components/schemas/Role"
+      responses:
+        "302":
+          description: Redirect back to lobby
+
+  /rooms/{code}/start:
+    post:
+      tags: [rooms]
+      summary: Start the game
+      description: |
+        Host only. Requires at least 4 players with exactly one spymaster
+        and one operative per team.
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+      responses:
+        "302":
+          description: Redirect to `/rooms/{code}/game` on success
+
+  /rooms/{code}/game:
+    get:
+      tags: [rooms]
+      summary: Game board page
+      description: |
+        HTML game UI with embedded initial JSON state. Connects to WebSocket
+        `/ws/rooms/{code}` for live updates.
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+      responses:
+        "200":
+          description: HTML game page
+          content:
+            text/html:
+              schema:
+                type: string
+        "302":
+          description: Redirect to lobby if game has not started
+        "404":
+          description: Room not found
+
+  /static/{path}:
+    get:
+      tags: [static]
+      summary: Static assets
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: CSS or JavaScript file
+
+  /ws/rooms/{code}:
+    get:
+      tags: [rooms]
+      summary: Game WebSocket
+      description: |
+        Upgrade to WebSocket. Requires valid `player_session` cookie for the room.
+
+        **Client → server**
+        - `{"type":"give_clue","word":"...","count":3}` — spymaster of active team
+        - `{"type":"guess","index":12}` — operative during guessing phase
+        - `{"type":"end_turn"}` — operative ends turn early
+
+        **Server → client**
+        - `{"type":"state","view":RoomViewDto}` — role-aware game state
+        - `{"type":"error","message":"..."}`
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+      responses:
+        "101":
+          description: Switching Protocols (WebSocket)
+        "403":
+          description: Missing or invalid session
+
+components:
+  parameters:
+    RoomCode:
+      name: code
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 4
+        maxLength: 4
+        pattern: "^[A-Z0-9]{4}$"
+      description: Four-character room code.
+
+  schemas:
+    Language:
+      type: string
+      enum: [ru, en]
+
+    Team:
+      type: string
+      enum: [RED, BLUE]
+
+    Role:
+      type: string
+      enum: [SPYMASTER, OPERATIVE]
+
+    RoomStatus:
+      type: string
+      enum: [LOBBY, PLAYING, FINISHED]
+
+    GamePhase:
+      type: string
+      enum: [CLUE, GUESSING]
+
+    CardView:
+      type: object
+      properties:
+        position:
+          type: integer
+          minimum: 0
+          maximum: 24
+        word:
+          type: string
+        type:
+          type: string
+          nullable: true
+          description: Card color; null for operatives until the card is revealed.
+          enum: [RED, BLUE, NEUTRAL, ASSASSIN]
+        revealed:
+          type: boolean
+
+    PlayerViewDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        team:
+          allOf:
+            - $ref: "#/components/schemas/Team"
+          nullable: true
+        role:
+          allOf:
+            - $ref: "#/components/schemas/Role"
+          nullable: true
+        isHost:
+          type: boolean
+
+    GameViewDto:
+      type: object
+      properties:
+        currentTeam:
+          $ref: "#/components/schemas/Team"
+        phase:
+          $ref: "#/components/schemas/GamePhase"
+        clueWord:
+          type: string
+          nullable: true
+        clueCount:
+          type: integer
+          nullable: true
+        guessesRemaining:
+          type: integer
+        cards:
+          type: array
+          items:
+            $ref: "#/components/schemas/CardView"
+        winner:
+          allOf:
+            - $ref: "#/components/schemas/Team"
+          nullable: true
+        redRemaining:
+          type: integer
+        blueRemaining:
+          type: integer
+
+    RoomViewDto:
+      type: object
+      description: Personalized room state sent over WebSocket.
+      properties:
+        status:
+          $ref: "#/components/schemas/RoomStatus"
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerViewDto"
+        game:
+          allOf:
+            - $ref: "#/components/schemas/GameViewDto"
+          nullable: true
+        viewerId:
+          type: string
+          format: uuid
+        canGiveClue:
+          type: boolean
+        canGuess:
+          type: boolean
+        canEndTurn:
+          type: boolean
+
+    WsGiveClueMessage:
+      type: object
+      required: [type, word, count]
+      properties:
+        type:
+          type: string
+          enum: [give_clue]
+        word:
+          type: string
+        count:
+          type: integer
+          minimum: 1
+
+    WsGuessMessage:
+      type: object
+      required: [type, index]
+      properties:
+        type:
+          type: string
+          enum: [guess]
+        index:
+          type: integer
+          minimum: 0
+          maximum: 24
+
+    WsEndTurnMessage:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [end_turn]
+
+    WsStateMessage:
+      type: object
+      required: [type, view]
+      properties:
+        type:
+          type: string
+          enum: [state]
+        view:
+          $ref: "#/components/schemas/RoomViewDto"
+
+    WsErrorMessage:
+      type: object
+      required: [type, message]
+      properties:
+        type:
+          type: string
+          enum: [error]
+        message:
+          type: string
+
+  securitySchemes:
+    PlayerSessionCookie:
+      type: apiKey
+      in: cookie
+      name: player_session
+      description: Ktor session cookie set after create/join room.
+
+security:
+  - PlayerSessionCookie: []

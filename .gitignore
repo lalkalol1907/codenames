@@ -1,0 +1,41 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Kotlin
+.kotlin/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# VS Code / Cursor
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & local artifacts
+*.log
+build.log
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Swagger codegen cache
+docs/.swagger-codegen/
+
+# Docker local overrides
+docker-compose.override.yml
+
+# Test / coverage
+*.exec
+.jacoco/
