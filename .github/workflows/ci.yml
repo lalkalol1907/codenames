@@ -89,6 +89,7 @@ jobs:
 
   # Только push тега v*; после успешной сборки образа.
   # Секреты: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_PATH, DEPLOY_DOTENV;
+  # DOCKERHUB_USERNAME + DOCKERHUB_TOKEN — для docker login на сервере (лимит anonymous pull).
   # опционально DEPLOY_SSH_KEY_PASSPHRASE — passphrase от ключа, если ключ зашифрован.
   deploy:
     name: Deploy
@@ -102,16 +103,19 @@ jobs:
           DEPLOY_DOTENV: ${{ secrets.DEPLOY_DOTENV }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           IMAGE_TAG: ${{ github.ref_name }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
-          envs: DEPLOY_DOTENV,DEPLOY_PATH,IMAGE_TAG
+          envs: DEPLOY_DOTENV,DEPLOY_PATH,IMAGE_TAG,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
           script: |
             set -euo pipefail
             cd "$DEPLOY_PATH"
             printf '%s\n' "$DEPLOY_DOTENV" > .env
             export IMAGE_TAG
+            echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --no-deps
