@@ -2,6 +2,8 @@ package com.lalkalol.i18n
 
 import com.lalkalol.game.model.Role
 import com.lalkalol.game.model.Team
+import com.lalkalol.config.appSettings
+import com.lalkalol.web.Csrf
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respondRedirect
 import kotlinx.serialization.encodeToString
@@ -19,6 +21,9 @@ object PageModel {
         return mapOf(
             "locale" to locale.code,
             "redirect" to redirect,
+            "csrf" to Csrf.token(call),
+            "metaDescription" to Messages.t(locale, "meta.description"),
+            "publicUrl" to call.application.appSettings().publicUrl,
             "msg" to MsgMethod(locale),
             "i18nJson" to PageModel.clientI18nJson(locale),
         ) + extra

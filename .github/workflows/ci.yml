@@ -1,0 +1,115 @@
+name: CI
+
+# push / pull_request — любые ветки и PR; build только для тегов v* (см. job build).
+# workflow_dispatch — ручной запуск во вкладке Actions → CI → Run workflow.
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: temurin
+          cache: gradle
+
+      - name: Compile
+        run: ./gradlew compileKotlin compileTestKotlin --no-daemon
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: temurin
+          cache: gradle
+
+      - name: Unit tests
+        run: ./gradlew test --no-daemon
+
+  build:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=tag
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Только для тегов v*; после успешной сборки образа.
+  # Секреты: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_PATH, DEPLOY_DOTENV;
+  # опционально DEPLOY_SSH_KEY_PASSPHRASE — passphrase от ключа, если ключ зашифрован.
+  deploy:
+    name: Deploy
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH (docker compose)
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_DOTENV: ${{ secrets.DEPLOY_DOTENV }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          IMAGE_TAG: ${{ github.ref_name }}
+          IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
+          envs: DEPLOY_DOTENV,DEPLOY_PATH,IMAGE_TAG,IMAGE_NAME
+          script: |
+            set -euo pipefail
+            cd "$DEPLOY_PATH"
+            printf '%s\n' "$DEPLOY_DOTENV" > .env
+            export IMAGE_TAG IMAGE_NAME
+            docker compose -f docker-compose.prod.yml pull app
+            docker compose -f docker-compose.prod.yml up -d --no-deps app

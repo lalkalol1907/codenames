@@ -4,6 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="${metaDescription}">
+    <link rel="canonical" href="${publicUrl}/">
+    <meta property="og:title" content="${title} — ${msg("app.title")}">
+    <meta property="og:description" content="${metaDescription}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="${publicUrl}/">
     <title>${title} — ${msg("app.title")}</title>
     <link rel="stylesheet" href="/static/css/game.css">
 </head>
@@ -12,6 +18,7 @@
 <header class="site-header">
     <a href="/" class="logo">${msg("app.title")}</a>
     <form method="post" action="/locale" class="locale-form">
+        <input type="hidden" name="_csrf" value="${csrf}">
         <input type="hidden" name="redirect" value="${redirect}">
         <label class="locale-label">
             <span class="locale-label-text">${msg("locale.label")}</span>

@@ -1,7 +1,7 @@
 <#import "_layout.ftl" as layout>
 <#import "_app-data.ftl" as appData>
 <@layout.layout title="${msg('lobby.title', room.code)}">
-<div id="lobby-root" data-room="${room.code}">
+<div id="lobby-root" data-room="${room.code}" data-csrf="${csrf}">
     <header style="margin-bottom: 1.5rem;">
         <p class="page-subtitle" style="margin-bottom: 0.25rem;">${msg("lobby.title", room.code)}</p>
         <p class="room-badge">${room.code}</p>
@@ -26,6 +26,7 @@
         <section class="panel">
             <h2 class="section-title">${msg("lobby.choose_team")}</h2>
             <form method="post" action="/rooms/${room.code}/role" class="form-stack">
+                <input type="hidden" name="_csrf" value="${csrf}">
                 <div class="form-row form-row--2">
                     <label class="field">
                         <span class="field-label">${msg("lobby.team")}</span>

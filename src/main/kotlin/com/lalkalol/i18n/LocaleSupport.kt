@@ -1,6 +1,7 @@
 package com.lalkalol.i18n
 
 import io.ktor.http.Cookie
+import com.lalkalol.config.appSettings
 import io.ktor.server.application.ApplicationCall
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -17,6 +18,7 @@ object LocaleSupport {
     }
 
     fun setCookie(call: ApplicationCall, locale: UiLocale) {
+        val secure = call.application.appSettings().secureCookies
         call.response.cookies.append(
             Cookie(
                 name = COOKIE_NAME,
@@ -24,6 +26,7 @@ object LocaleSupport {
                 path = "/",
                 maxAge = COOKIE_MAX_AGE,
                 httpOnly = false,
+                secure = secure,
                 extensions = mapOf("SameSite" to "Lax"),
             ),
         )

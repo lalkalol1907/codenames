@@ -141,6 +141,7 @@
                 const disabled = view.canRandomizeTeams ? '' : ' disabled';
                 rolesActions.innerHTML = `
                     <form method="post" action="/rooms/${roomCode}/randomize">
+                        <input type="hidden" name="_csrf" value="${escapeHtml(document.getElementById('lobby-root')?.dataset.csrf || '')}">
                         <button type="submit" class="btn--secondary"${disabled}>${escapeHtml(i18n.randomizeTeams || 'Randomize teams')}</button>
                         <p class="hint">${escapeHtml(i18n.randomizeHint || '')}</p>
                     </form>
@@ -159,6 +160,7 @@
                 : fmt(i18n.waitingHint || 'Waiting ({0}/4)', view.players.length);
             startSection.innerHTML = `
                 <form method="post" action="/rooms/${roomCode}/start">
+                    <input type="hidden" name="_csrf" value="${escapeHtml(document.getElementById('lobby-root')?.dataset.csrf || '')}">
                     <button type="submit" class="primary"${disabled}>${escapeHtml(i18n.startGame || 'Start game')}</button>
                     <p class="hint">${escapeHtml(hint)}</p>
                 </form>

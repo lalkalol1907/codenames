@@ -1,8 +1,12 @@
 package com.lalkalol.testsupport
 
+import com.lalkalol.config.configureAppSettings
 import com.lalkalol.config.configureDatabase
 import com.lalkalol.config.configureDependencyInjection
 import com.lalkalol.config.configureRouting
+import com.lalkalol.db.h2TestJdbcUrl
+import com.lalkalol.config.configureHealth
+import com.lalkalol.config.configureSecurity
 import com.lalkalol.config.configureSessions
 import com.lalkalol.config.configureTemplates
 import com.lalkalol.game.model.Language
@@ -12,6 +16,7 @@ import com.lalkalol.game.service.GameService
 import com.lalkalol.room.model.Player
 import com.lalkalol.room.model.Room
 import com.lalkalol.room.service.RoomService
+import com.lalkalol.web.configureWebSockets
 import io.ktor.server.application.Application
 import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.plugins.di.dependencies
@@ -53,9 +58,15 @@ fun ApplicationTestBuilder.configureTestEnvironment() {
     environment {
         config = MapApplicationConfig(
             "database.driver" to "org.h2.Driver",
-            "database.url" to "jdbc:h2:mem:codenames-${System.nanoTime()};DB_CLOSE_DELAY=-1;MODE=PostgreSQL",
+            "database.url" to h2TestJdbcUrl("codenames-${System.nanoTime()}"),
             "database.user" to "sa",
             "database.password" to "",
+            "database.poolSize" to "5",
+            "app.environment" to "test",
+            "app.publicUrl" to "http://localhost",
+            "app.secureCookies" to "false",
+            "app.sessionSecret" to "test-secret-for-unit-tests!!",
+            "app.exposeApiDocs" to "false",
         )
     }
 }
@@ -64,8 +75,11 @@ fun withTestApp(block: suspend Application.() -> Unit) {
     testApplication {
         configureTestEnvironment()
         application {
+            configureAppSettings()
             configureDependencyInjection()
+            configureSecurity()
             configureDatabase()
+            configureHealth()
         }
         startApplication()
         application.block()
@@ -76,10 +90,14 @@ fun withTestServer(block: suspend ApplicationTestBuilder.() -> Unit) {
     testApplication {
         configureTestEnvironment()
         application {
+            configureAppSettings()
             configureDependencyInjection()
+            configureSecurity()
             configureDatabase()
+            configureHealth()
             configureTemplates()
             configureSessions()
+            configureWebSockets()
             configureRouting()
         }
         startApplication()

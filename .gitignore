@@ -35,6 +35,11 @@ docs/.swagger-codegen/
 
 # Docker local overrides
 docker-compose.override.yml
+pgdata/
+
+# TLS material (keep directory via certs/.gitkeep)
+certs/*
+!certs/.gitkeep
 
 # Test / coverage
 *.exec

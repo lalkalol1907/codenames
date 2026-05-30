@@ -9,6 +9,7 @@
     </#if>
 
     <form method="post" action="/rooms/${code}/join" class="form-stack page-centered__form">
+        <input type="hidden" name="_csrf" value="${csrf}">
         <label class="field">
             <span class="field-label">${msg("join.your_name")}</span>
             <input type="text" name="name" required maxlength="64" autofocus autocomplete="nickname">

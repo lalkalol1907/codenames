@@ -19,4 +19,9 @@ class ServerTest {
         assertEquals(HttpStatusCode.Found, response.status)
         assertEquals("/", response.headers["Location"])
     }
+    @Test
+    fun `health endpoints respond ok`() = withTestServer {
+        assertEquals(HttpStatusCode.OK, client.get("/health").status)
+        assertEquals(HttpStatusCode.OK, client.get("/health/ready").status)
+    }
 }

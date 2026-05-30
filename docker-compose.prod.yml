@@ -1,0 +1,59 @@
+# Production: pre-built image, bind-mounted Postgres data and TLS keystore.
+# Requires IMAGE_NAME, IMAGE_TAG, SESSION_SECRET, APP_PUBLIC_URL in .env.
+# HTTPS: place keystore.p12 in ./certs (see scripts/pem-to-pkcs12.sh).
+services:
+  db:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    networks:
+      - codenames-network
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-codenames}
+      POSTGRES_USER: ${POSTGRES_USER:-codenames}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-codenames}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codenames} -d ${POSTGRES_DB:-codenames}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    image: ${IMAGE_NAME}:${IMAGE_TAG}
+    env_file:
+      - .env
+    networks:
+      - codenames-network
+    ports:
+      - "${HTTP_PORT:-8080}:8080"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ${SSL_CERTS_DIR:-./certs}:/certs:ro
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-codenames}
+      DATABASE_USER: ${POSTGRES_USER:-codenames}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-codenames}
+      DATABASE_DRIVER: org.postgresql.Driver
+      SESSION_SECRET: ${SESSION_SECRET}
+      APP_ENV: prod
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL}
+      APP_SECURE_COOKIES: ${APP_SECURE_COOKIES:-true}
+      APP_EXPOSE_API_DOCS: "false"
+      SSL_KEYSTORE_PASSWORD: ${SSL_KEYSTORE_PASSWORD}
+      SSL_PRIVATE_KEY_PASSWORD: ${SSL_PRIVATE_KEY_PASSWORD:-${SSL_KEYSTORE_PASSWORD}}
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - ./bin/codenames
+      - -config=application-prod-https.yaml
+    restart: unless-stopped
+
+networks:
+  codenames-network:
+    external: false

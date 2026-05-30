@@ -1,3 +1,4 @@
+# Production HTTP only (no TLS). For HTTPS use application-prod-https.yaml.
 ktor:
   deployment:
     host: 0.0.0.0
@@ -16,15 +17,15 @@ ktor:
       - com.lalkalol.config.RoutingKt.configureRouting
 
 app:
-  environment: dev
-  publicUrl: "http://localhost:8080"
-  secureCookies: false
-  sessionSecret: "dev-secret-change-me-in-production"
-  exposeApiDocs: true
+  environment: prod
+  publicUrl: "https://example.com"
+  secureCookies: true
+  sessionSecret: "replace-with-long-random-secret"
+  exposeApiDocs: false
 
 database:
-  url: "jdbc:h2:mem:codenames;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"
-  driver: org.h2.Driver
-  user: sa
-  password: ""
-  poolSize: 5
+  url: "jdbc:postgresql://localhost:5432/codenames"
+  driver: org.postgresql.Driver
+  user: codenames
+  password: codenames
+  poolSize: 10

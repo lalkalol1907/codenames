@@ -15,6 +15,7 @@
             <span class="section-icon" aria-hidden="true">✦</span>${msg("home.create_room")}
         </h2>
         <form method="post" action="/rooms" class="form-stack">
+            <input type="hidden" name="_csrf" value="${csrf}">
             <label class="field">
                 <span class="field-label">${msg("home.name")}</span>
                 <input type="text" name="name" required maxlength="64" autocomplete="nickname">
@@ -36,6 +37,7 @@
             <span class="section-icon section-icon--join" aria-hidden="true">→</span>${msg("home.join_room")}
         </h2>
         <form method="post" action="/rooms/join" class="form-stack">
+            <input type="hidden" name="_csrf" value="${csrf}">
             <label class="field">
                 <span class="field-label">${msg("home.room_code")}</span>
                 <input type="text" name="code" required maxlength="4" pattern="[A-Za-z0-9]{4}"

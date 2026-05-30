@@ -12,6 +12,8 @@ import com.lalkalol.i18n.PageModel.redirectWithException
 import com.lalkalol.i18n.UiLocale
 import com.lalkalol.room.service.RoomService
 import com.lalkalol.room.service.RoomException
+import com.lalkalol.web.Csrf
+import com.lalkalol.web.GameSessionHub
 import com.lalkalol.web.dto.ViewBuilder
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -26,6 +28,8 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.server.plugins.ratelimit.RateLimitName
+import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.sessions.clear
 import io.ktor.server.sessions.get
 import io.ktor.server.sessions.sessions
@@ -39,6 +43,10 @@ fun Application.configurePages() {
     routing {
         post("/locale") {
             val params = call.receiveParameters()
+            if (!Csrf.validate(call, params)) {
+                call.respondRedirect("/")
+                return@post
+            }
             val locale = UiLocale.fromCode(params["locale"] ?: "") ?: UiLocale.default()
             LocaleSupport.setCookie(call, locale)
             val redirect = params["redirect"]?.takeIf { it.startsWith("/") } ?: "/"
@@ -66,40 +74,50 @@ fun Application.configurePages() {
             )
         }
 
-        post("/rooms") {
-            val roomService = application.dependencies.resolve<RoomService>()
-            val params = call.receiveParameters()
-            val language = Language.fromCode(params["language"] ?: "en")
-            val hostName = params["name"]?.trim().orEmpty()
-            if (hostName.isEmpty()) {
-                call.redirectWithError("/", "error.enter_name")
-                return@post
+        rateLimit(RateLimitName("room-actions")) {
+            post("/rooms") {
+                val params = call.receiveParameters()
+                if (!Csrf.validate(call, params)) {
+                    call.redirectWithError("/", "error.csrf")
+                    return@post
+                }
+                val roomService = application.dependencies.resolve<RoomService>()
+                val language = Language.fromCode(params["language"] ?: "en")
+                val hostName = params["name"]?.trim().orEmpty().take(64)
+                if (hostName.isEmpty()) {
+                    call.redirectWithError("/", "error.enter_name")
+                    return@post
+                }
+                try {
+                    val (room, host) = roomService.createRoom(language, hostName)
+                    call.sessions.set(PlayerSession(host.id.toString(), room.code))
+                    call.respondRedirect("/rooms/${room.code}")
+                } catch (e: RoomException) {
+                    call.redirectWithException("/", e.message)
+                }
             }
-            try {
-                val (room, host) = roomService.createRoom(language, hostName)
-                call.sessions.set(PlayerSession(host.id.toString(), room.code))
-                call.respondRedirect("/rooms/${room.code}")
-            } catch (e: RoomException) {
-                call.redirectWithException("/", e.message)
-            }
-        }
 
-        post("/rooms/join") {
-            val roomService = application.dependencies.resolve<RoomService>()
-            val params = call.receiveParameters()
-            val code = params["code"]?.trim().orEmpty().uppercase()
-            val name = params["name"]?.trim().orEmpty()
-            if (code.isEmpty() || name.isEmpty()) {
-                call.redirectWithError("/", "error.enter_code_and_name")
-                return@post
-            }
-            try {
-                val (room, player) = roomService.joinRoom(code, name)
-                call.sessions.set(PlayerSession(player.id.toString(), room.code))
-                application.dependencies.resolve<GameSessionHub>().broadcast(room.code)
-                call.respondRedirect("/rooms/${room.code}")
-            } catch (e: RoomException) {
-                call.redirectWithException("/", e.message)
+            post("/rooms/join") {
+                val params = call.receiveParameters()
+                if (!Csrf.validate(call, params)) {
+                    call.redirectWithError("/", "error.csrf")
+                    return@post
+                }
+                val roomService = application.dependencies.resolve<RoomService>()
+                val code = params["code"]?.trim().orEmpty().uppercase()
+                val name = params["name"]?.trim().orEmpty().take(64)
+                if (code.isEmpty() || name.isEmpty()) {
+                    call.redirectWithError("/", "error.enter_code_and_name")
+                    return@post
+                }
+                try {
+                    val (room, player) = roomService.joinRoom(code, name)
+                    call.sessions.set(PlayerSession(player.id.toString(), room.code))
+                    application.dependencies.resolve<GameSessionHub>().broadcast(room.code)
+                    call.respondRedirect("/rooms/${room.code}")
+                } catch (e: RoomException) {
+                    call.redirectWithException("/", e.message)
+                }
             }
         }
 
@@ -174,11 +192,16 @@ fun Application.configurePages() {
             }
 
             post("/join") {
+                val params = call.receiveParameters()
+                if (!Csrf.validate(call, params)) {
+                    call.redirectWithError("/rooms/${call.parameters["code"]}", "error.csrf")
+                    return@post
+                }
                 val roomService = application.dependencies.resolve<RoomService>()
                 val hub = application.dependencies.resolve<GameSessionHub>()
                 val code = call.parameters["code"]!!.uppercase()
                 val locale = LocaleSupport.resolve(call)
-                val name = call.receiveParameters()["name"]?.trim().orEmpty()
+                val name = params["name"]?.trim().orEmpty().take(64)
                 if (name.isEmpty()) {
                     call.redirectWithError("/rooms/$code", "error.enter_name")
                     return@post
@@ -205,14 +228,22 @@ fun Application.configurePages() {
             }
 
             post("/role") {
+                val params = call.receiveParameters()
+                if (!Csrf.validate(call, params)) {
+                    call.redirectWithError("/rooms/${call.parameters["code"]}", "error.csrf")
+                    return@post
+                }
                 val roomService = application.dependencies.resolve<RoomService>()
                 val hub = application.dependencies.resolve<GameSessionHub>()
                 val code = call.parameters["code"]!!.uppercase()
                 val session = call.sessions.get<PlayerSession>()
                     ?: return@post call.respondRedirect("/rooms/$code")
-                val params = call.receiveParameters()
-                val team = Team.valueOf(params["team"] ?: return@post call.respondRedirect("/rooms/$code"))
-                val role = Role.valueOf(params["role"] ?: return@post call.respondRedirect("/rooms/$code"))
+                val team = parseTeam(params["team"])
+                val role = parseRole(params["role"])
+                if (team == null || role == null) {
+                    call.redirectWithError("/rooms/$code", "error.invalid_role")
+                    return@post
+                }
                 try {
                     roomService.setRole(code, session.playerUuid(), team, role)
                     hub.broadcast(code)
@@ -223,6 +254,11 @@ fun Application.configurePages() {
             }
 
             post("/randomize") {
+                val params = call.receiveParameters()
+                if (!Csrf.validate(call, params)) {
+                    call.redirectWithError("/rooms/${call.parameters["code"]}", "error.csrf")
+                    return@post
+                }
                 val roomService = application.dependencies.resolve<RoomService>()
                 val hub = application.dependencies.resolve<GameSessionHub>()
                 val code = call.parameters["code"]!!.uppercase()
@@ -238,6 +274,11 @@ fun Application.configurePages() {
             }
 
             post("/start") {
+                val params = call.receiveParameters()
+                if (!Csrf.validate(call, params)) {
+                    call.redirectWithError("/rooms/${call.parameters["code"]}", "error.csrf")
+                    return@post
+                }
                 val roomService = application.dependencies.resolve<RoomService>()
                 val hub = application.dependencies.resolve<GameSessionHub>()
                 val code = call.parameters["code"]!!.uppercase()
@@ -283,3 +324,9 @@ fun Application.configurePages() {
         }
     }
 }
+
+private fun parseTeam(value: String?): Team? =
+    value?.let { runCatching { Team.valueOf(it) }.getOrNull() }
+
+private fun parseRole(value: String?): Role? =
+    value?.let { runCatching { Role.valueOf(it) }.getOrNull() }
