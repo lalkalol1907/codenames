@@ -1,88 +1,69 @@
 # Codenames Online
 
-Multiplayer word deduction game in the browser. Backend: **Ktor 3 + Kotlin**, frontend: **FreeMarker + vanilla JS**, database: **PostgreSQL** (H2 for local dev).
+Multiplayer word-deduction game in the browser (Codenames-style).
+
+| | |
+|---|---|
+| **Backend** | Ktor 3 · Kotlin |
+| **Frontend** | FreeMarker · vanilla JS |
+| **Database** | PostgreSQL (Docker/prod) · H2 (local `./gradlew run`) |
 
 ## Requirements
 
-- JDK 24
-- Docker (optional, for production-like stack)
+- JDK **24**
+- Docker — optional (production-like stack)
 
 ## Local development
 
 ```bash
-./gradlew run
-```
-
-Open http://localhost:8080
-
-Tests:
-
-```bash
+./gradlew run    # → http://localhost:8080
 ./gradlew test
 ```
 
-## Production with Docker Compose
+Embedded H2 — no Postgres or Docker required.
 
-1. Copy environment template:
+## Docker
 
 ```bash
 cp .env.example .env
-```
+# Set SESSION_SECRET, APP_PUBLIC_URL, and DB credentials
 
-2. Edit `.env` — set `SESSION_SECRET`, `APP_PUBLIC_URL`, and TLS passwords.
-
-3. Prepare HTTPS keystore (once per certificate renewal):
-
-```bash
-# Let's Encrypt PEM → PKCS12
-SSL_KEYSTORE_PASSWORD=your-secret ./scripts/pem-to-pkcs12.sh
-
-# Or self-signed for local testing
-SSL_KEYSTORE_PASSWORD=dev-secret ./scripts/generate-dev-certs.sh
-```
-
-4. Start stack:
-
-```bash
-# Local HTTP (dev-like)
 docker compose up --build
-
-# Production image + HTTPS (requires ./certs/keystore.p12)
-docker compose -f docker-compose.prod.yml up -d
+# Production + HTTPS (needs ./certs/keystore.p12):
+# docker compose -f docker-compose.prod.yml up -d
 ```
 
-The app reads `application-prod.yaml` (HTTP) or `application-prod-https.yaml` (HTTP :8080 + HTTPS :443).
-Database credentials and secrets come from `.env`.
+**HTTPS keystore** (once per cert):
 
-## Configuration
+```bash
+SSL_KEYSTORE_PASSWORD=… ./scripts/pem-to-pkcs12.sh           # Let's Encrypt PEM → PKCS12
+SSL_KEYSTORE_PASSWORD=… ./scripts/generate-dev-certs.sh    # self-signed (local)
+```
+
+Config profiles: `application-prod.yaml` (HTTP) · `application-prod-https.yaml` (8080 + 443).
+
+## Environment
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | JDBC URL (PostgreSQL in prod) |
-| `DATABASE_USER` | Database user |
-| `DATABASE_PASSWORD` | Database password |
-| `DATABASE_DRIVER` | JDBC driver class |
-| `SESSION_SECRET` | Cookie signing secret (32+ chars) |
-| `APP_PUBLIC_URL` | Public site URL for SEO/canonical links |
-| `APP_ENV` | `dev` or `prod` |
+| `DATABASE_*` | JDBC URL, user, password, driver |
+| `SESSION_SECRET` | Cookie signing (32+ random chars) |
+| `APP_PUBLIC_URL` | Public site URL |
+| `APP_ENV` | `dev` \| `prod` |
 | `APP_SECURE_COOKIES` | `true` behind HTTPS |
-| `APP_EXPOSE_API_DOCS` | `false` in production |
-| `SSL_KEYSTORE_PASSWORD` | Password for `/certs/keystore.p12` (HTTPS) |
-| `SSL_PRIVATE_KEY_PASSWORD` | Optional; defaults to keystore password |
-| `SSL_CERTS_DIR` | Host path mounted as `/certs` (default `./certs`) |
-| `HTTP_PORT` / `HTTPS_PORT` | Published ports (default `8080` / `443`) |
+| `APP_EXPOSE_API_DOCS` | OpenAPI at `/openapi` (default off in prod) |
+| `SSL_*`, `HTTP_PORT`, `HTTPS_PORT` | Keystore under `SSL_CERTS_DIR` (default `./certs`) |
 
-Health checks:
+Full template: [`.env.example`](.env.example).
 
-- `GET /health` — liveness
-- `GET /health/ready` — database connectivity
+## Health & API
 
-## Architecture notes
+- `GET /health` — liveness  
+- `GET /health/ready` — DB ready  
+- `GET /openapi` — when API docs are enabled  
 
-- **Single instance** for WebSocket fan-out (`GameSessionHub` is in-memory). Scale horizontally only after adding Redis Pub/Sub or similar.
-- Room/game state is stored in PostgreSQL via Exposed.
-- Schema migrations run automatically via Flyway on startup.
+## Architecture
 
-## API docs
-
-OpenAPI is available at `/openapi` when `app.exposeApiDocs=true` (disabled in production by default).
+- Room and game state in PostgreSQL (Exposed); **Flyway** migrations on startup.
+- Real-time updates via **WebSockets**; fan-out is **in-memory** on one process — scale out only after shared pub/sub (e.g. Redis).
+- OpenAPI/AsyncAPI in dev when `app.exposeApiDocs=true`.
