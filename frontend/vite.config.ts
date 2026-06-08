@@ -32,6 +32,15 @@ export default defineConfig({
   },
   test: {
     environment: 'happy-dom',
+    environmentOptions: {
+      happyDOM: {
+        url: 'http://localhost:3000/',
+      },
+    },
+    env: {
+      SSR: '',
+    },
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    setupFiles: ['src/test/setup.ts'],
   },
 });

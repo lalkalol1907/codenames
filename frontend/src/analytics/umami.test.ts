@@ -1,18 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { trackEvent, trackPageView } from './umami';
 
 describe('umami analytics', () => {
   beforeEach(() => {
     vi.stubEnv('VITE_UMAMI_WEBSITE_ID', '');
     vi.stubEnv('VITE_UMAMI_SCRIPT_URL', '');
     delete window.umami;
+    document.head.querySelectorAll('script[data-website-id]').forEach((node) => node.remove());
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
-  it('no-ops when env is not configured', () => {
+  async function loadUmami() {
+    return import('./umami');
+  }
+
+  it('no-ops when env is not configured', async () => {
+    const { trackEvent, trackPageView } = await loadUmami();
     const track = vi.fn();
     window.umami = { track };
 
@@ -22,10 +28,11 @@ describe('umami analytics', () => {
     expect(track).not.toHaveBeenCalled();
   });
 
-  it('tracks events when configured and umami is available', () => {
+  it('tracks events when configured and umami is available', async () => {
     vi.stubEnv('VITE_UMAMI_WEBSITE_ID', 'test-website-id');
     vi.stubEnv('VITE_UMAMI_SCRIPT_URL', 'https://analytics.example.com/script.js');
 
+    const { trackEvent, trackPageView } = await loadUmami();
     const track = vi.fn();
     window.umami = { track };
 

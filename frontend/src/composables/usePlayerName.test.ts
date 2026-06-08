@@ -5,7 +5,6 @@ describe('usePlayerName', () => {
   afterEach(() => {
     localStorage.removeItem('codenames_player_name');
   });
-
   it('returns empty when nothing saved', () => {
     expect(loadPlayerName()).toBe('');
   });

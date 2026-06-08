@@ -91,7 +91,7 @@ describe('useRoomSocket', () => {
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it('connects to room websocket and tracks connection state', async () => {

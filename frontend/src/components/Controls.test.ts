@@ -21,7 +21,7 @@ describe('Controls', () => {
 
     const wrapper = mount(Controls, { props: { view, game } });
     await wrapper.find('input[type="text"]').setValue('ocean');
-    await wrapper.find('input[type="number"]').setValue(2);
+    await wrapper.find('input[type="number"]').setValue('2');
     await wrapper.find('button').trigger('click');
 
     expect(wrapper.emitted('giveClue')).toEqual([['ocean', 2]]);
