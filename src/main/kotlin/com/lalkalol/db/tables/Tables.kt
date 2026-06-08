@@ -41,6 +41,7 @@ object GamesTable : Table("games") {
     val clueCount = integer("clue_count").nullable()
     val guessesRemaining = integer("guesses_remaining")
     val winnerTeam = varchar("winner_team", 8).nullable()
+    val version = integer("version")
 
     override val primaryKey = PrimaryKey(id)
 }

@@ -22,15 +22,30 @@ const roomStore = useRoomStore();
 const router = useRouter();
 const error = ref<string | null>(null);
 const loading = ref(true);
+const showReconnected = ref(false);
+let reconnectedTimer: ReturnType<typeof setTimeout> | undefined;
 
 useHead({
   title: () => `${localeStore.t('game.title', props.code)} — ${localeStore.t('app.title')}`,
 });
 
-const { send, wsError } = useRoomSocket(props.code);
+const { send, wsError, wsConnection } = useRoomSocket(props.code);
 
 const view = computed(() => roomStore.view);
 const game = computed(() => view.value?.game ?? null);
+const showReconnectBanner = computed(
+  () => wsConnection.value === 'connecting' || wsConnection.value === 'reconnecting',
+);
+
+watch(wsConnection, (state, previous) => {
+  if (state === 'connected' && previous === 'reconnecting') {
+    showReconnected.value = true;
+    clearTimeout(reconnectedTimer);
+    reconnectedTimer = setTimeout(() => {
+      showReconnected.value = false;
+    }, 2500);
+  }
+});
 
 watch(
   () => game.value?.winner,
@@ -87,6 +102,17 @@ function onEndTurn() {
   <p v-else-if="error" class="alert-error" role="alert">{{ error }}</p>
 
   <div v-else-if="view && game" class="game-layout">
+    <p v-if="showReconnectBanner" class="alert-warn" role="status" aria-live="polite">
+      {{ localeStore.t('game.reconnecting') }}
+    </p>
+    <p
+      v-else-if="showReconnected"
+      class="alert-warn alert-warn--ok"
+      role="status"
+      aria-live="polite"
+    >
+      {{ localeStore.t('game.reconnected') }}
+    </p>
     <p v-if="wsError" class="alert-error" role="alert">{{ wsError }}</p>
     <aside class="panel game-sidebar">
       <h2 class="section-title">{{ localeStore.t('lobby.players') }}</h2>

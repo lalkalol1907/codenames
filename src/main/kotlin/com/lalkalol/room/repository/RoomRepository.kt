@@ -5,6 +5,7 @@ import com.lalkalol.db.tables.CardsTable
 import com.lalkalol.db.tables.GamesTable
 import com.lalkalol.db.tables.PlayersTable
 import com.lalkalol.db.tables.RoomsTable
+import com.lalkalol.game.model.GameState
 import com.lalkalol.game.model.Language
 import com.lalkalol.game.model.Role
 import com.lalkalol.game.model.RoomStatus
@@ -12,9 +13,14 @@ import com.lalkalol.game.model.Team
 import com.lalkalol.game.repository.GameRepository
 import com.lalkalol.room.model.Player
 import com.lalkalol.room.model.Room
+import com.lalkalol.room.service.RoomException
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.update
+import org.jetbrains.exposed.sql.vendors.ForUpdateOption
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
@@ -83,6 +89,35 @@ class RoomRepository(
         RoomsTable.update({ RoomsTable.id eq roomId }) {
             it[RoomsTable.status] = status.name
         }
+    }
+
+    suspend fun startGameAtomically(
+        code: String,
+        hostPlayerId: UUID,
+        game: GameState,
+        validate: (Room) -> Unit,
+    ): Room = dbQuery {
+        val room = loadByCodeForUpdate(code) ?: throw RoomException("Room not found")
+        if (room.hostPlayerId != hostPlayerId) {
+            throw RoomException("Only host can start the game")
+        }
+        if (room.status != RoomStatus.LOBBY) {
+            throw RoomException("Game already started")
+        }
+        validate(room)
+        gameRepository.insertGameInTransaction(game)
+        RoomsTable.update({ RoomsTable.id eq room.id }) {
+            it[RoomsTable.status] = RoomStatus.PLAYING.name
+        }
+        requireNotNull(loadRoom(room.id))
+    }
+
+    fun loadByCodeForUpdate(code: String): Room? {
+        val roomRow = RoomsTable.selectAll()
+            .where { RoomsTable.code eq code.uppercase() }
+            .forUpdate(ForUpdateOption.ForUpdate)
+            .singleOrNull() ?: return null
+        return loadRoom(roomRow[RoomsTable.id])
     }
 
     suspend fun codeExists(code: String): Boolean = dbQuery {

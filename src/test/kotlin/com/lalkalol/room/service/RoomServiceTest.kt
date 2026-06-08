@@ -66,6 +66,16 @@ class RoomServiceTest {
     }
 
     @Test
+    fun `startGame is rejected when game already started`() = withTestApp {
+        val roomService = roomService()
+        val setup = roomService.setupFourPlayerGame()
+
+        assertFailsWith<RoomException> {
+            roomService.startGame(setup.roomCode, setup.host.id)
+        }
+    }
+
+    @Test
     fun `randomizeTeams assigns all roles for four players`() = withTestApp {
         val roomService = roomService()
         val (room, host) = roomService.createRoom(Language.RU, "Host")

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { useHead } from '@unhead/vue';
 import { trackEvent } from '@/analytics/umami';
 import { api, ApiError } from '@/api/client';
+import { loadPlayerName, savePlayerName } from '@/composables/usePlayerName';
 import { useLocaleStore } from '@/stores/locale';
 
 const localeStore = useLocaleStore();
@@ -38,6 +39,14 @@ const joinName = ref('');
 const error = ref<string | null>(null);
 const loading = ref(false);
 
+if (!import.meta.env.SSR) {
+  const savedName = loadPlayerName();
+  if (savedName) {
+    createName.value = savedName;
+    joinName.value = savedName;
+  }
+}
+
 const gameLanguages = [
   { value: 'en', labelKey: 'lang.en' },
   { value: 'ru', labelKey: 'lang.ru' },
@@ -48,6 +57,7 @@ async function createRoom() {
   loading.value = true;
   try {
     const result = await api.createRoom(createName.value, createLanguage.value);
+    savePlayerName(createName.value);
     trackEvent('room_created', { language: createLanguage.value });
     await router.push(`/rooms/${result.code}`);
   } catch (e) {
@@ -62,6 +72,7 @@ async function joinRoom() {
   loading.value = true;
   try {
     const result = await api.joinRoom(joinCode.value.toUpperCase(), joinName.value);
+    savePlayerName(joinName.value);
     trackEvent('room_joined', { source: 'home' });
     await router.push(`/rooms/${result.code}`);
   } catch (e) {

@@ -9,7 +9,9 @@ import com.lalkalol.game.model.Clue
 import com.lalkalol.game.model.GamePhase
 import com.lalkalol.game.model.GameState
 import com.lalkalol.game.model.Team
+import com.lalkalol.game.service.GameException
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
@@ -23,20 +25,46 @@ class GameRepository {
     }
 
     suspend fun saveGame(game: GameState): GameState = dbQuery {
-        GamesTable.update({ GamesTable.id eq game.id }) {
-            it[currentTeam] = game.currentTeam.name
-            it[phase] = game.phase.name
-            it[clueWord] = game.clue?.word
-            it[clueCount] = game.clue?.count
-            it[guessesRemaining] = game.guessesRemaining
-            it[winnerTeam] = game.winner?.name
+        saveGameInTransaction(game, game)
+    }
+
+    fun insertGameInTransaction(game: GameState) {
+        insertGame(game)
+    }
+
+    fun saveGameInTransaction(expected: GameState, updated: GameState): GameState {
+        require(expected.id == updated.id) { "Game id mismatch" }
+
+        val gameRows = GamesTable.update({
+            (GamesTable.id eq expected.id) and (GamesTable.version eq expected.version)
+        }) {
+            it[currentTeam] = updated.currentTeam.name
+            it[phase] = updated.phase.name
+            it[clueWord] = updated.clue?.word
+            it[clueCount] = updated.clue?.count
+            it[guessesRemaining] = updated.guessesRemaining
+            it[winnerTeam] = updated.winner?.name
+            it[version] = expected.version + 1
         }
-        game.cards.forEach { card ->
-            CardsTable.update({ CardsTable.id eq card.id }) {
-                it[revealed] = card.revealed
+        if (gameRows == 0) {
+            throw GameException("Game state changed")
+        }
+
+        updated.cards.forEach { card ->
+            val previous = expected.cards.first { it.id == card.id }
+            if (card.revealed && !previous.revealed) {
+                val cardRows = CardsTable.update({
+                    (CardsTable.id eq card.id) and (CardsTable.revealed eq false)
+                }) {
+                    it[revealed] = true
+                }
+                if (cardRows == 0) {
+                    throw GameException("Card already revealed")
+                }
             }
         }
-        game
+
+        return updated.copy(version = expected.version + 1)
     }
 
     fun findByRoomIdInTransaction(roomId: UUID): GameState? {
@@ -56,6 +84,7 @@ class GameRepository {
             it[clueCount] = game.clue?.count
             it[guessesRemaining] = game.guessesRemaining
             it[winnerTeam] = game.winner?.name
+            it[version] = game.version
         }
         CardsTable.batchInsert(game.cards) { card ->
             this[CardsTable.id] = card.id
@@ -95,6 +124,7 @@ class GameRepository {
             guessesRemaining = gameRow[GamesTable.guessesRemaining],
             cards = cards,
             winner = gameRow[GamesTable.winnerTeam]?.let { Team.valueOf(it) },
+            version = gameRow[GamesTable.version],
         )
     }
 }

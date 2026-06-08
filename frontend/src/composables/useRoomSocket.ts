@@ -3,6 +3,8 @@ import { useRouter } from 'vue-router';
 import type { RoomViewDto, WsClientMessage, WsServerMessage } from '@/types/models';
 import { useRoomStore } from '@/stores/room';
 
+export type WsConnectionState = 'connecting' | 'connected' | 'reconnecting';
+
 function wsUrl(roomCode: string): string {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${protocol}//${location.host}/ws/rooms/${roomCode}`;
@@ -23,9 +25,11 @@ export function useRoomSocket(
   const roomStore = useRoomStore();
   const router = useRouter();
   const wsError = ref<string | null>(null);
+  const wsConnection = ref<WsConnectionState>('connecting');
   let ws: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let leaveSent = false;
+  let hasConnectedOnce = false;
 
   function send(payload: WsClientMessage) {
     if (ws?.readyState === WebSocket.OPEN) {
@@ -35,7 +39,12 @@ export function useRoomSocket(
 
   function connect() {
     if (leaveSent || typeof window === 'undefined') return;
+    wsConnection.value = hasConnectedOnce ? 'reconnecting' : 'connecting';
     ws = new WebSocket(wsUrl(roomCode));
+    ws.onopen = () => {
+      hasConnectedOnce = true;
+      wsConnection.value = 'connected';
+    };
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data) as WsServerMessage;
       if ('view' in msg && msg.view) {
@@ -57,6 +66,7 @@ export function useRoomSocket(
     };
     ws.onclose = (event) => {
       if (leaveSent || event.code === 1008) return;
+      wsConnection.value = 'reconnecting';
       clearTimeout(reconnectTimer);
       reconnectTimer = setTimeout(connect, 2000);
     };
@@ -78,5 +88,5 @@ export function useRoomSocket(
     });
   });
 
-  return { send, wsError };
+  return { send, wsError, wsConnection };
 }

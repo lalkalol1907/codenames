@@ -1,5 +1,7 @@
 package com.lalkalol.game.service
 
+import com.lalkalol.db.dbQuery
+import com.lalkalol.db.tables.RoomsTable
 import com.lalkalol.game.model.Clue
 import com.lalkalol.game.model.GamePhase
 import com.lalkalol.game.model.GameState
@@ -13,6 +15,8 @@ import com.lalkalol.game.rules.WinChecker
 import com.lalkalol.room.model.Player
 import com.lalkalol.room.model.Room
 import com.lalkalol.room.repository.RoomRepository
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.update
 import java.util.UUID
 
 class GameService(
@@ -20,10 +24,10 @@ class GameService(
     private val boardGenerator: BoardGenerator,
     private val roomRepository: RoomRepository,
 ) {
-    suspend fun startGame(room: Room): GameState {
+    suspend fun buildNewGame(room: Room): GameState {
         val gameId = UUID.randomUUID()
         val board = boardGenerator.generate(room.language, gameId)
-        val game = GameState(
+        return GameState(
             id = gameId,
             roomId = room.id,
             startingTeam = board.startingTeam,
@@ -34,13 +38,15 @@ class GameService(
             cards = board.cards,
             winner = null,
         )
+    }
+
+    suspend fun startGame(room: Room): GameState {
+        val game = buildNewGame(room)
         return gameRepository.createGame(game)
     }
 
-    suspend fun giveClue(roomCode: String, playerId: UUID, word: String, count: Int): GameState {
-        val room = requirePlayingRoom(roomCode)
-        val game = requireNotNull(room.game)
-        val player = requirePlayer(room, playerId)
+    suspend fun giveClue(roomCode: String, playerId: UUID, word: String, count: Int): GameState = dbQuery {
+        val (room, game, player) = lockedPlayingGame(roomCode, playerId)
 
         if (game.winner != null) throw GameException("Game is over")
         if (game.phase != GamePhase.CLUE) throw GameException("Not clue phase")
@@ -59,13 +65,11 @@ class GameService(
             clue = Clue(clueWord, count),
             guessesRemaining = count + 1,
         )
-        return gameRepository.saveGame(updated)
+        gameRepository.saveGameInTransaction(game, updated)
     }
 
-    suspend fun guess(roomCode: String, playerId: UUID, position: Int): GameState {
-        val room = requirePlayingRoom(roomCode)
-        var game = requireNotNull(room.game)
-        val player = requirePlayer(room, playerId)
+    suspend fun guess(roomCode: String, playerId: UUID, position: Int): GameState = dbQuery {
+        val (room, game, player) = lockedPlayingGame(roomCode, playerId)
 
         if (game.winner != null) throw GameException("Game is over")
         if (game.phase != GamePhase.GUESSING) throw GameException("Not guessing phase")
@@ -82,60 +86,59 @@ class GameService(
         val revealedCard = revealedCards.first { it.position == position }
 
         val winner = WinChecker.checkWinner(revealedCards, revealedCard.type, game.currentTeam)
-        if (winner != null) {
-            game = game.copy(cards = revealedCards, winner = winner, phase = GamePhase.CLUE)
-            roomRepository.updateStatus(room.id, RoomStatus.FINISHED)
-            return gameRepository.saveGame(game)
-        }
-
-        val guessesRemaining = game.guessesRemaining - 1
-        val endTurn = TurnLogic.shouldEndTurnAfterGuess(revealedCard.type, game.currentTeam)
+        val updated = if (winner != null) {
+            RoomsTable.update({ RoomsTable.id eq room.id }) {
+                it[RoomsTable.status] = RoomStatus.FINISHED.name
+            }
+            game.copy(cards = revealedCards, winner = winner, phase = GamePhase.CLUE)
+        } else {
+            val guessesRemaining = game.guessesRemaining - 1
+            val endTurn = TurnLogic.shouldEndTurnAfterGuess(revealedCard.type, game.currentTeam)
                 || guessesRemaining <= 0
 
-        game = if (endTurn) {
-            game.copy(
-                cards = revealedCards,
-                currentTeam = TurnLogic.nextTeam(game.currentTeam),
-                phase = GamePhase.CLUE,
-                clue = null,
-                guessesRemaining = 0,
-            )
-        } else {
-            game.copy(cards = revealedCards, guessesRemaining = guessesRemaining)
+            if (endTurn) {
+                game.copy(
+                    cards = revealedCards,
+                    currentTeam = TurnLogic.nextTeam(game.currentTeam),
+                    phase = GamePhase.CLUE,
+                    clue = null,
+                    guessesRemaining = 0,
+                )
+            } else {
+                game.copy(cards = revealedCards, guessesRemaining = guessesRemaining)
+            }
         }
-        return gameRepository.saveGame(game)
+
+        gameRepository.saveGameInTransaction(game, updated)
     }
 
-    suspend fun endTurn(roomCode: String, playerId: UUID): GameState {
-        val room = requirePlayingRoom(roomCode)
-        var game = requireNotNull(room.game)
-        val player = requirePlayer(room, playerId)
+    suspend fun endTurn(roomCode: String, playerId: UUID): GameState = dbQuery {
+        val (_, game, player) = lockedPlayingGame(roomCode, playerId)
 
         if (game.winner != null) throw GameException("Game is over")
         if (game.phase != GamePhase.GUESSING) throw GameException("Not guessing phase")
         if (player.role != Role.OPERATIVE) throw GameException("Only operatives can end turn")
         if (player.team != game.currentTeam) throw GameException("Not your team's turn")
 
-        game = game.copy(
+        val updated = game.copy(
             currentTeam = TurnLogic.nextTeam(game.currentTeam),
             phase = GamePhase.CLUE,
             clue = null,
             guessesRemaining = 0,
         )
-        return gameRepository.saveGame(game)
+        gameRepository.saveGameInTransaction(game, updated)
     }
 
-    private suspend fun requirePlayingRoom(roomCode: String): Room {
-        val room = roomRepository.findByCode(roomCode.uppercase())
+    private fun lockedPlayingGame(roomCode: String, playerId: UUID): Triple<Room, GameState, Player> {
+        val room = roomRepository.loadByCodeForUpdate(roomCode.uppercase())
             ?: throw GameException("Room not found")
         if (room.status != RoomStatus.PLAYING || room.game == null) {
             throw GameException("Game is not in progress")
         }
-        return room
+        val game = room.game!!
+        val player = room.players.find { it.id == playerId } ?: throw GameException("Player not found")
+        return Triple(room, game, player)
     }
-
-    private fun requirePlayer(room: Room, playerId: UUID): Player =
-        room.players.find { it.id == playerId } ?: throw GameException("Player not found")
 }
 
 class GameException(message: String) : Exception(message)

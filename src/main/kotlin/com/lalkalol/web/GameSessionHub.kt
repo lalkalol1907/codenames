@@ -7,6 +7,7 @@ import com.lalkalol.game.service.GameException
 import com.lalkalol.game.service.GameService
 import com.lalkalol.room.service.RoomService
 import com.lalkalol.web.dto.ViewBuilder
+import com.lalkalol.web.dto.WsClientMessage
 import com.lalkalol.web.dto.WsErrorMessage
 import com.lalkalol.web.dto.WsStateMessage
 import com.lalkalol.web.dto.wsJson
@@ -20,7 +21,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.Serializable
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -68,22 +68,10 @@ class GameSessionHub(
     suspend fun handleMessage(roomCode: String, playerId: UUID, raw: String) {
         val code = roomCode.uppercase()
         try {
-            when {
-                raw.contains("\"give_clue\"") -> {
-                    val msg = json.decodeFromString<GiveCluePayload>(raw)
-                    gameService.giveClue(code, playerId, msg.word, msg.count)
-                }
-                raw.contains("\"guess\"") -> {
-                    val msg = json.decodeFromString<GuessPayload>(raw)
-                    gameService.guess(code, playerId, msg.index)
-                }
-                raw.contains("\"end_turn\"") -> {
-                    gameService.endTurn(code, playerId)
-                }
-                else -> {
-                    sendError(code, playerId, "Unknown message type")
-                    return
-                }
+            when (val msg = json.decodeFromString<WsClientMessage>(raw)) {
+                is WsClientMessage.GiveClue -> gameService.giveClue(code, playerId, msg.word, msg.count)
+                is WsClientMessage.Guess -> gameService.guess(code, playerId, msg.index)
+                is WsClientMessage.EndTurn -> gameService.endTurn(code, playerId)
             }
             broadcast(code)
         } catch (e: GameException) {
@@ -143,12 +131,6 @@ class GameSessionHub(
             runCatching { session.send(Frame.Text(localizedPayload)) }
         }
     }
-
-    @Serializable
-    private data class GiveCluePayload(val type: String, val word: String, val count: Int)
-
-    @Serializable
-    private data class GuessPayload(val type: String, val index: Int)
 
     companion object {
         private const val LEAVE_GRACE_MS = 10_000L

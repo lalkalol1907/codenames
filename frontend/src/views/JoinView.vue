@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { trackEvent } from '@/analytics/umami';
 import { api, ApiError } from '@/api/client';
+import { loadPlayerName, savePlayerName } from '@/composables/usePlayerName';
 import { useLocaleStore } from '@/stores/locale';
 
 const props = defineProps<{
@@ -13,7 +14,7 @@ const emit = defineEmits<{
 }>();
 
 const localeStore = useLocaleStore();
-const name = ref('');
+const name = ref(loadPlayerName());
 const error = ref<string | null>(null);
 const loading = ref(false);
 
@@ -22,6 +23,7 @@ async function submit() {
   loading.value = true;
   try {
     await api.joinRoomAt(props.code, name.value);
+    savePlayerName(name.value);
     trackEvent('room_joined', { source: 'link' });
     emit('joined', props.code);
   } catch (e) {

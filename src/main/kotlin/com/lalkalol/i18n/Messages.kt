@@ -31,6 +31,7 @@ object Messages {
         "Clue cannot match a word on the board" to "error.clue_on_board",
         "Invalid card position" to "error.invalid_card",
         "Card already revealed" to "error.card_revealed",
+        "Game state changed" to "error.game_state_changed",
         "Game is not in progress" to "error.game_not_in_progress",
         "Player not found" to "error.player_not_found",
         "Unknown message type" to "error.unknown_message",

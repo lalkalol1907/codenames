@@ -86,13 +86,11 @@ class RoomService(
         if (room.hostPlayerId != hostPlayerId) {
             throw RoomException("Only host can start the game")
         }
-        if (room.status != RoomStatus.LOBBY) {
-            throw RoomException("Game already started")
-        }
         validateReadyToStart(room)
-        gameService.startGame(room)
-        roomRepository.updateStatus(room.id, RoomStatus.PLAYING)
-        return requireNotNull(roomRepository.findByCode(roomCode))
+        val game = gameService.buildNewGame(room)
+        return roomRepository.startGameAtomically(room.code, hostPlayerId, game) { lockedRoom ->
+            validateReadyToStart(lockedRoom)
+        }
     }
 
     suspend fun getRoom(code: String): Room? = roomRepository.findByCode(code.uppercase())

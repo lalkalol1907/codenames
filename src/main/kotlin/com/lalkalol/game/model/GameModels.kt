@@ -25,4 +25,5 @@ data class GameState(
     val guessesRemaining: Int,
     val cards: List<Card>,
     val winner: Team?,
+    val version: Int = 0,
 )
