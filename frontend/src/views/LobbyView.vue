@@ -117,9 +117,7 @@ async function copyRoomLink() {
       <div class="room-header">
         <p class="room-badge">{{ code }}</p>
         <button type="button" class="btn--secondary room-copy-link" @click="copyRoomLink">
-          {{
-            linkCopied ? localeStore.t('lobby.link_copied') : localeStore.t('lobby.copy_link')
-          }}
+          {{ linkCopied ? localeStore.t('lobby.link_copied') : localeStore.t('lobby.copy_link') }}
         </button>
       </div>
       <p class="room-meta">
