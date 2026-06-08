@@ -3,8 +3,6 @@ package com.lalkalol.i18n
 import io.ktor.http.Cookie
 import com.lalkalol.config.appSettings
 import io.ktor.server.application.ApplicationCall
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 object LocaleSupport {
     const val COOKIE_NAME = "ui_locale"
@@ -31,7 +29,4 @@ object LocaleSupport {
             ),
         )
     }
-
-    fun encodeRedirectParam(value: String): String =
-        URLEncoder.encode(value, StandardCharsets.UTF_8)
 }

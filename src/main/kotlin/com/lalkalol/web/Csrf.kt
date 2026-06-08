@@ -2,13 +2,12 @@ package com.lalkalol.web
 
 import com.lalkalol.config.appSettings
 import io.ktor.http.Cookie
-import io.ktor.http.Parameters
 import io.ktor.server.application.ApplicationCall
 import java.security.SecureRandom
 import java.util.Base64
 
 object Csrf {
-    const val PARAM = "_csrf"
+    const val HEADER = "X-CSRF-Token"
     const val COOKIE = "csrf_token"
 
     private val secureRandom = SecureRandom()
@@ -22,7 +21,7 @@ object Csrf {
                 name = COOKIE,
                 value = token,
                 path = "/",
-                httpOnly = true,
+                httpOnly = false,
                 secure = secure,
                 extensions = mapOf("SameSite" to "Lax"),
             ),
@@ -30,18 +29,18 @@ object Csrf {
         return token
     }
 
-    fun validate(call: ApplicationCall, params: Parameters): Boolean {
+    fun validateApi(call: ApplicationCall): Boolean {
         val secure = call.application.appSettings().secureCookies
         val cookieToken = call.request.cookies[COOKIE]
-        val paramToken = params[PARAM]
-        if (cookieToken.isNullOrBlank() || paramToken.isNullOrBlank() || cookieToken != paramToken) {
+        val headerToken = call.request.headers[HEADER]
+        if (cookieToken.isNullOrBlank() || headerToken.isNullOrBlank() || cookieToken != headerToken) {
             call.response.cookies.append(
                 Cookie(
                     name = COOKIE,
                     value = "",
                     path = "/",
                     maxAge = 0,
-                    httpOnly = true,
+                    httpOnly = false,
                     secure = secure,
                 ),
             )

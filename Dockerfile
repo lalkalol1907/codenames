@@ -1,12 +1,23 @@
+FROM node:26.3.0 AS frontend
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/
+COPY src/main/resources/i18n/ src/main/resources/i18n/
+COPY frontend/ frontend/
+WORKDIR /app/frontend
+ENV VITE_PUBLIC_URL=https://example.com
+RUN pnpm install --frozen-lockfile && pnpm run build
+
 FROM eclipse-temurin:24-jdk AS build
 WORKDIR /app
 
 COPY gradlew gradlew.bat gradle.properties settings.gradle.kts build.gradle.kts ./
 COPY gradle/ gradle/
+COPY --from=frontend /app/src/main/resources/static/ src/main/resources/static/
 COPY src/ src/
 
 RUN chmod +x gradlew \
-    && ./gradlew installDist --no-daemon -x test
+    && ./gradlew installDist --no-daemon -x test -PskipFrontendBuild
 
 FROM eclipse-temurin:24-jre
 WORKDIR /app

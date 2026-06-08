@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
     alias(ktorLibs.plugins.ktor)
+    id("com.github.node-gradle.node") version "7.1.0"
 }
 
 group = "com.lalkalol"
@@ -15,6 +16,29 @@ kotlin {
     jvmToolchain(24)
 }
 
+node {
+    version.set("26.3.0")
+    pnpmVersion.set("10.11.0")
+    download.set(true)
+    nodeProjectDir.set(file("frontend"))
+    workDir.set(file("${project.projectDir}/.gradle/nodejs"))
+    npmWorkDir.set(file("${project.projectDir}/.gradle/npm"))
+}
+
+val viteBuild by tasks.registering(com.github.gradle.node.pnpm.task.PnpmTask::class) {
+    dependsOn(tasks.pnpmInstall)
+    pnpmCommand.set(listOf("run", "build"))
+    onlyIf { !project.hasProperty("skipFrontendBuild") }
+}
+
+tasks.named("processResources") {
+    dependsOn(viteBuild)
+}
+
+repositories {
+    mavenCentral()
+}
+
 dependencies {
     implementation(ktorLibs.server.config.yaml)
     implementation(ktorLibs.server.core)
@@ -22,7 +46,6 @@ dependencies {
     implementation(ktorLibs.server.netty)
     implementation(ktorLibs.server.openapi)
     implementation(ktorLibs.server.routingOpenapi)
-    implementation(ktorLibs.server.freemarker)
     implementation(ktorLibs.server.websockets)
     implementation(ktorLibs.server.contentNegotiation)
     implementation(ktorLibs.serialization.kotlinx.json)

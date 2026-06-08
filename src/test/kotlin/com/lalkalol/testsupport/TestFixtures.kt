@@ -6,9 +6,9 @@ import com.lalkalol.config.configureDependencyInjection
 import com.lalkalol.config.configureRouting
 import com.lalkalol.db.h2TestJdbcUrl
 import com.lalkalol.config.configureHealth
+import com.lalkalol.config.configureHttp
 import com.lalkalol.config.configureSecurity
 import com.lalkalol.config.configureSessions
-import com.lalkalol.config.configureTemplates
 import com.lalkalol.game.model.Language
 import com.lalkalol.game.model.Role
 import com.lalkalol.game.model.Team
@@ -95,7 +95,7 @@ fun withTestServer(block: suspend ApplicationTestBuilder.() -> Unit) {
             configureSecurity()
             configureDatabase()
             configureHealth()
-            configureTemplates()
+            configureHttp()
             configureSessions()
             configureWebSockets()
             configureRouting()

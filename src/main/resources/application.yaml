@@ -10,7 +10,6 @@ ktor:
       - com.lalkalol.config.SecurityKt.configureSecurity
       - com.lalkalol.config.DatabaseKt.configureDatabase
       - com.lalkalol.config.HealthKt.configureHealth
-      - com.lalkalol.config.TemplatesKt.configureTemplates
       - com.lalkalol.config.SessionsKt.configureSessions
       - com.lalkalol.web.WebSocketsKt.configureWebSockets
       - com.lalkalol.config.RoutingKt.configureRouting

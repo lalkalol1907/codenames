@@ -14,10 +14,9 @@ class ServerTest {
     }
 
     @Test
-    fun `unknown path redirects to home`() = withTestServer {
-        val response = createClient { followRedirects = false }.get("/no-such-page")
-        assertEquals(HttpStatusCode.Found, response.status)
-        assertEquals("/", response.headers["Location"])
+    fun `unknown path serves spa shell`() = withTestServer {
+        val response = client.get("/no-such-page")
+        assertEquals(HttpStatusCode.OK, response.status)
     }
     @Test
     fun `health endpoints respond ok`() = withTestServer {

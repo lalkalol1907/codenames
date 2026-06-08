@@ -37,6 +37,13 @@ docs/.swagger-codegen/
 docker-compose.override.yml
 pgdata/
 
+# Frontend
+frontend/node_modules/
+frontend/src/i18n/bundled/
+.pnpm-store/
+# Vite / vite-ssg build output (see frontend/vite.config.ts → outDir)
+src/main/resources/static/
+
 # TLS material (keep directory via certs/.gitkeep)
 certs/*
 !certs/.gitkeep

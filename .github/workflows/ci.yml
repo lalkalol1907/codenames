@@ -29,7 +29,66 @@ jobs:
           cache: gradle
 
       - name: Compile
-        run: ./gradlew compileKotlin compileTestKotlin --no-daemon
+        run: ./gradlew compileKotlin compileTestKotlin -PskipFrontendBuild --no-daemon
+
+  frontend-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck app
+        working-directory: frontend
+        run: pnpm run typecheck
+
+      - name: Typecheck Vite config
+        working-directory: frontend
+        run: pnpm run typecheck:node
+
+      - name: ESLint
+        working-directory: frontend
+        run: pnpm run lint
+
+      - name: Prettier
+        working-directory: frontend
+        run: pnpm run format:check
+
+  frontend-test:
+    needs: frontend-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Unit tests
+        working-directory: frontend
+        run: pnpm test
 
   test:
     needs: lint
@@ -45,10 +104,10 @@ jobs:
           cache: gradle
 
       - name: Unit tests
-        run: ./gradlew test --no-daemon
+        run: ./gradlew test -PskipFrontendBuild --no-daemon
 
   build:
-    needs: test
+    needs: [test, frontend-test]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:

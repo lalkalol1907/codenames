@@ -54,4 +54,11 @@ object Messages {
         val key = exceptionKeys[message] ?: return message
         return t(locale, key)
     }
+
+    fun allMessages(locale: UiLocale): Map<String, String> {
+        val bundle = ResourceBundle.getBundle(BUNDLE, locale.toJavaLocale())
+        return bundle.keys.asSequence().associateWith { key ->
+            bundle.getString(key)
+        }
+    }
 }

@@ -1,0 +1,5 @@
+node_modules/
+dist/
+src/i18n/bundled/
+pnpm-lock.yaml
+tsconfig.node.tsbuildinfo
