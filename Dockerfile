@@ -5,7 +5,12 @@ COPY frontend/package.json frontend/pnpm-lock.yaml frontend/
 COPY src/main/resources/i18n/ src/main/resources/i18n/
 COPY frontend/ frontend/
 WORKDIR /app/frontend
-ENV VITE_PUBLIC_URL=https://example.com
+ARG VITE_PUBLIC_URL=https://example.com
+ARG VITE_UMAMI_SCRIPT_URL
+ARG VITE_UMAMI_WEBSITE_ID
+ENV VITE_PUBLIC_URL=$VITE_PUBLIC_URL
+ENV VITE_UMAMI_SCRIPT_URL=$VITE_UMAMI_SCRIPT_URL
+ENV VITE_UMAMI_WEBSITE_ID=$VITE_UMAMI_WEBSITE_ID
 RUN pnpm install --frozen-lockfile && pnpm run build
 
 FROM eclipse-temurin:24-jdk AS build

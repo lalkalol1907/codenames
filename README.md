@@ -74,8 +74,30 @@ Config profiles: `application-prod.yaml` (HTTP) · `application-prod-https.yaml`
 | `APP_EXPOSE_API_DOCS` | OpenAPI at `/openapi` (default off in prod) |
 | `SSL_*`, `HTTP_PORT`, `HTTPS_PORT` | Keystore under `SSL_CERTS_DIR` (default `./certs`) |
 | `VITE_PUBLIC_URL` | Canonical URL baked into frontend SEO meta at build time |
+| `VITE_UMAMI_*` | Umami script URL and website id (baked at frontend build; optional) |
+| `UMAMI_*` | Self-hosted Umami in `docker-compose.prod.yml` (DB, secret, port) |
 
 Full template: [`.env.example`](.env.example).
+
+## Analytics (Umami)
+
+Self-hosted [Umami](https://umami.is/) tracks page views and custom events. Without `VITE_UMAMI_*` the frontend skips analytics (local dev).
+
+**Events:** `room_created`, `room_joined`, `game_started`, `game_finished` + SPA page views.
+
+**Production setup:**
+
+1. Add `UMAMI_APP_SECRET` and DB vars to `.env` (see `.env.example`).
+2. First deploy with empty `pgdata` creates the `umami` database automatically. Existing Postgres: create DB/user manually (see below).
+3. Start stack: `docker compose -f docker-compose.prod.yml up -d`.
+4. Open Umami (`UMAMI_PORT`, default 3000), sign in (`admin` / `umami`), change password.
+5. Add a website with your public URL (`APP_PUBLIC_URL`), copy **Website ID**.
+6. Set build-time vars and rebuild the app image:
+   - `VITE_UMAMI_SCRIPT_URL=https://analytics.example.com/script.js`
+   - `VITE_UMAMI_WEBSITE_ID=<uuid from dashboard>`
+7. Put the same vars in GitHub Actions secrets for release builds (`VITE_PUBLIC_URL`, `VITE_UMAMI_*`).
+
+Use a subdomain (e.g. `analytics.example.com`) with HTTPS in front of Umami port 3000.
 
 ## Health & API
 

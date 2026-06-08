@@ -10,6 +10,10 @@
 build
 .kotlin
 
+# Frontend build output — produced in Docker frontend stage or locally via pnpm
+src/main/resources/static/
+frontend/node_modules/
+
 *.log
 build.log
 

@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useHead } from '@unhead/vue';
+import { trackEvent } from '@/analytics/umami';
 import { api, ApiError } from '@/api/client';
 import { useLocaleStore } from '@/stores/locale';
 
@@ -47,6 +48,7 @@ async function createRoom() {
   loading.value = true;
   try {
     const result = await api.createRoom(createName.value, createLanguage.value);
+    trackEvent('room_created', { language: createLanguage.value });
     await router.push(`/rooms/${result.code}`);
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : localeStore.t('error.unexpected');
@@ -60,6 +62,7 @@ async function joinRoom() {
   loading.value = true;
   try {
     const result = await api.joinRoom(joinCode.value.toUpperCase(), joinName.value);
+    trackEvent('room_joined', { source: 'home' });
     await router.push(`/rooms/${result.code}`);
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : localeStore.t('error.unexpected');

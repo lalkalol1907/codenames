@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { trackEvent } from '@/analytics/umami';
 import { api, ApiError } from '@/api/client';
 import { useLocaleStore } from '@/stores/locale';
 
@@ -21,6 +22,7 @@ async function submit() {
   loading.value = true;
   try {
     await api.joinRoomAt(props.code, name.value);
+    trackEvent('room_joined', { source: 'link' });
     emit('joined', props.code);
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : localeStore.t('error.unexpected');

@@ -25,14 +25,24 @@ node {
     npmWorkDir.set(file("${project.projectDir}/.gradle/npm"))
 }
 
+val skipFrontendBuild = project.hasProperty("skipFrontendBuild")
+
 val viteBuild by tasks.registering(com.github.gradle.node.pnpm.task.PnpmTask::class) {
     dependsOn(tasks.pnpmInstall)
     pnpmCommand.set(listOf("run", "build"))
-    onlyIf { !project.hasProperty("skipFrontendBuild") }
+    onlyIf { !skipFrontendBuild }
 }
 
 tasks.named("processResources") {
-    dependsOn(viteBuild)
+    if (!skipFrontendBuild) {
+        dependsOn(viteBuild)
+    }
+}
+
+if (skipFrontendBuild) {
+    tasks.named("nodeSetup") { enabled = false }
+    tasks.named("pnpmSetup") { enabled = false }
+    tasks.named("pnpmInstall") { enabled = false }
 }
 
 repositories {

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useHead } from '@unhead/vue';
+import { trackEvent } from '@/analytics/umami';
 import { api, ApiError } from '@/api/client';
 import Board from '@/components/Board.vue';
 import CluePanel from '@/components/CluePanel.vue';
@@ -30,6 +31,15 @@ const { send, wsError } = useRoomSocket(props.code);
 
 const view = computed(() => roomStore.view);
 const game = computed(() => view.value?.game ?? null);
+
+watch(
+  () => game.value?.winner,
+  (winner, previous) => {
+    if (winner && !previous) {
+      trackEvent('game_finished', { winner });
+    }
+  },
+);
 
 onMounted(async () => {
   try {

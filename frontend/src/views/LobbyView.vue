@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useHead } from '@unhead/vue';
 import { api, ApiError } from '@/api/client';
+import { trackEvent } from '@/analytics/umami';
 import { useRoomSocket } from '@/composables/useRoomSocket';
 import { useLocaleStore } from '@/stores/locale';
 import { useRoomStore } from '@/stores/room';
@@ -80,6 +81,7 @@ async function startGame() {
   loading.value = true;
   try {
     await api.startGame(props.code);
+    trackEvent('game_started');
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : localeStore.t('error.unexpected');
   } finally {

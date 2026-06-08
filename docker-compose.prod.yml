@@ -16,6 +16,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - ./pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init-umami.sql:/docker-entrypoint-initdb.d/02-umami.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codenames} -d ${POSTGRES_DB:-codenames}"]
       interval: 5s
@@ -52,6 +53,24 @@ services:
     command:
       - ./bin/codenames
       - -config=application-prod-https.yaml
+    restart: unless-stopped
+
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    env_file:
+      - .env
+    networks:
+      - codenames-network
+    environment:
+      DATABASE_URL: postgresql://${UMAMI_DB_USER:-umami}:${UMAMI_DB_PASSWORD:-umami}@db:5432/${UMAMI_DB_NAME:-umami}
+      DATABASE_TYPE: postgresql
+      APP_SECRET: ${UMAMI_APP_SECRET}
+      DISABLE_TELEMETRY: "1"
+    ports:
+      - "${UMAMI_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
 networks:
