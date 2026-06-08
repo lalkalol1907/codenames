@@ -9,7 +9,6 @@ declare global {
   }
 }
 
-let scriptLoaded = false;
 const pending: Array<() => void> = [];
 
 function getConfig() {
@@ -44,7 +43,6 @@ export function initUmami(): void {
   const { websiteId, scriptUrl } = getConfig();
   if (!isEnabled() || typeof document === 'undefined') return;
   if (document.querySelector(`script[data-website-id="${websiteId}"]`)) {
-    scriptLoaded = true;
     flushPending();
     return;
   }
@@ -54,7 +52,6 @@ export function initUmami(): void {
   script.src = scriptUrl!;
   script.setAttribute('data-website-id', websiteId!);
   script.onload = () => {
-    scriptLoaded = true;
     flushPending();
   };
   document.head.appendChild(script);
