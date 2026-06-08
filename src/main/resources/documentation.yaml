@@ -2,166 +2,308 @@ openapi: "3.0.3"
 info:
   title: Codenames
   description: |
-    HTTP-интерфейс мультиплеерной игры Codenames.
+    JSON API для мультиплеерной игры Codenames.
 
-    Страницы рендерятся на сервере (FreeMarker). Формы отправляют
-    `application/x-www-form-urlencoded`. После входа в комнату клиент
-    получает cookie `player_session`.
+    UI — Vue SPA (статика в `/static/`). Маршруты вроде `/`, `/rooms/{code}` отдают
+    `index.html`; данные загружаются через `/api/*`.
 
-    Состояние игры в реальном времени синхронизируется через WebSocket
-    `GET /ws/rooms/{code}` (JSON-сообщения, см. схемы WsStateMessage и WsErrorMessage).
+    **Сессия:** после create/join устанавливается httpOnly cookie `player_session`.
+
+    **CSRF:** для `POST`/`PUT`/`PATCH`/`DELETE` нужны cookie `csrf_token` и заголовок
+    `X-CSRF-Token` с тем же значением. Токен выдаёт `GET /api/csrf`.
+
+    **Rate limit:** `POST /api/rooms`, `POST /api/rooms/join` и room-actions
+    (`/join`, `/role`, `/randomize`, `/start`) — не более 30 запросов в минуту на клиента.
+
+    **WebSocket:** состояние комнаты в реальном времени — `GET /ws/rooms/{code}`.
   version: "1.0.0"
 servers:
   - url: http://localhost:8080
     description: Local development
 
 tags:
-  - name: pages
-    description: Server-rendered HTML pages
+  - name: auth
+    description: CSRF and session
+  - name: i18n
+    description: UI translations
   - name: rooms
     description: Room lifecycle (create, join, lobby, start)
-  - name: static
-    description: CSS and JavaScript assets
+  - name: health
+    description: Liveness and readiness probes
+  - name: websocket
+    description: Real-time game state
 
 paths:
-  /:
+  /api/csrf:
     get:
-      tags: [pages]
-      summary: Home page
-      description: Create or join a room.
+      tags: [auth]
+      summary: Get CSRF token
+      description: |
+        Sets `csrf_token` cookie (if missing) and returns the token for the
+        `X-CSRF-Token` request header.
+      security: []
+      responses:
+        "200":
+          description: CSRF token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsrfResponse"
+
+  /api/session:
+    get:
+      tags: [auth]
+      summary: Current player session
+      description: Returns player and room from `player_session` cookie, or empty fields.
+      responses:
+        "200":
+          description: Session state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+
+  /api/i18n:
+    get:
+      tags: [i18n]
+      summary: UI message bundle
       parameters:
-        - name: error
+        - name: locale
           in: query
           required: false
           schema:
             type: string
-          description: Optional error message shown on the page.
+            enum: [ru, en]
+          description: Locale code; defaults to cookie or `Accept-Language`.
+      security: []
       responses:
         "200":
-          description: HTML home page
+          description: Flat map of message keys to translated strings
           content:
-            text/html:
+            application/json:
               schema:
-                type: string
+                type: object
+                additionalProperties:
+                  type: string
 
-  /rooms:
+  /api/locale:
+    post:
+      tags: [i18n]
+      summary: Set UI locale
+      description: Sets `ui_locale` cookie. Requires CSRF.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetLocaleRequest"
+      responses:
+        "204":
+          description: Locale updated
+        "403":
+          description: Invalid CSRF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/rooms:
     post:
       tags: [rooms]
       summary: Create a room
-      description: Creates a new room and sets a session cookie for the host.
+      description: Creates a room and sets `player_session` for the host.
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
-              type: object
-              required: [name, language]
-              properties:
-                name:
-                  type: string
-                  maxLength: 64
-                  description: Display name of the host player.
-                language:
-                  $ref: "#/components/schemas/Language"
+              $ref: "#/components/schemas/CreateRoomRequest"
       responses:
-        "302":
-          description: Redirect to `/rooms/{code}` on success, or to `/` with `error` query param on validation failure.
+        "200":
+          description: Room created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomActionResponse"
+        "400":
+          description: Validation or business error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Invalid CSRF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
-  /rooms/join:
+  /api/rooms/join:
     post:
       tags: [rooms]
-      summary: Join a room from the home page
+      summary: Join a room by code
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
-              type: object
-              required: [code, name]
-              properties:
-                code:
-                  type: string
-                  minLength: 4
-                  maxLength: 4
-                  pattern: "^[A-Za-z0-9]{4}$"
-                name:
-                  type: string
-                  maxLength: 64
+              $ref: "#/components/schemas/JoinRoomRequest"
       responses:
-        "302":
-          description: Redirect to `/rooms/{code}` on success or `/` with error.
+        "200":
+          description: Joined successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomActionResponse"
+        "400":
+          description: Validation or business error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Invalid CSRF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
-  /rooms/{code}:
+  /api/rooms/{code}:
     get:
       tags: [rooms]
-      summary: Room lobby or join form
+      summary: Room bootstrap
       description: |
-        Without a valid session cookie — join form.
-        With session — lobby (team/role selection); redirects to game if already started.
+        Without a valid session for this room — `needJoin: true`.
+        With session — personalized `RoomViewDto` for lobby or game.
       parameters:
         - $ref: "#/components/parameters/RoomCode"
-        - name: error
-          in: query
-          required: false
-          schema:
-            type: string
       responses:
         "200":
-          description: HTML lobby or join page
+          description: Bootstrap payload
           content:
-            text/html:
+            application/json:
               schema:
-                type: string
+                $ref: "#/components/schemas/RoomBootstrapDto"
         "404":
           description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
-  /rooms/{code}/join:
+  /api/rooms/{code}/options:
+    get:
+      tags: [rooms]
+      summary: Lobby form options
+      description: Localized team and role labels for the role picker.
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+      security: []
+      responses:
+        "200":
+          description: Select options
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomOptionsDto"
+
+  /api/rooms/{code}/join:
     post:
       tags: [rooms]
-      summary: Join a room by direct link
+      summary: Join room by direct link
       parameters:
         - $ref: "#/components/parameters/RoomCode"
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
-              type: object
-              required: [name]
-              properties:
-                name:
-                  type: string
-                  maxLength: 64
+              $ref: "#/components/schemas/JoinRoomInCodeRequest"
       responses:
-        "302":
-          description: Redirect to lobby on success
         "200":
-          description: Join form with error message
+          description: Joined successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomActionResponse"
+        "400":
+          description: Validation or business error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Invalid CSRF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
-  /rooms/{code}/role:
+  /api/rooms/{code}/role:
     post:
       tags: [rooms]
       summary: Choose team and role
-      description: Requires session cookie. Only allowed while room is in LOBBY status.
+      description: Requires session. Only while room status is LOBBY.
       parameters:
         - $ref: "#/components/parameters/RoomCode"
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
-              type: object
-              required: [team, role]
-              properties:
-                team:
-                  $ref: "#/components/schemas/Team"
-                role:
-                  $ref: "#/components/schemas/Role"
+              $ref: "#/components/schemas/SetRoleRequest"
       responses:
-        "302":
-          description: Redirect back to lobby
+        "204":
+          description: Role saved; clients receive WS state update
+        "400":
+          description: Validation or business error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not in room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Invalid CSRF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
-  /rooms/{code}/start:
+  /api/rooms/{code}/randomize:
+    post:
+      tags: [rooms]
+      summary: Randomize team assignments
+      description: Host only. Requires exactly 4 players in lobby.
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+      responses:
+        "204":
+          description: Teams randomized
+        "400":
+          description: Validation or business error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not in room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Invalid CSRF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/rooms/{code}/start:
     post:
       tags: [rooms]
       summary: Start the game
@@ -171,47 +313,80 @@ paths:
       parameters:
         - $ref: "#/components/parameters/RoomCode"
       responses:
-        "302":
-          description: Redirect to `/rooms/{code}/game` on success
-
-  /rooms/{code}/game:
-    get:
-      tags: [rooms]
-      summary: Game board page
-      description: |
-        HTML game UI with embedded initial JSON state. Connects to WebSocket
-        `/ws/rooms/{code}` for live updates.
-      parameters:
-        - $ref: "#/components/parameters/RoomCode"
-      responses:
-        "200":
-          description: HTML game page
+        "204":
+          description: Game started; clients receive WS state update
+        "400":
+          description: Validation or business error
           content:
-            text/html:
+            application/json:
               schema:
-                type: string
-        "302":
-          description: Redirect to lobby if game has not started
-        "404":
-          description: Room not found
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not in room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Invalid CSRF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
-  /static/{path}:
+  /health:
     get:
-      tags: [static]
-      summary: Static assets
-      parameters:
-        - name: path
-          in: path
-          required: true
-          schema:
-            type: string
+      tags: [health]
+      summary: Liveness probe
+      security: []
       responses:
         "200":
-          description: CSS or JavaScript file
+          description: Process is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /health/ready:
+    get:
+      tags: [health]
+      summary: Readiness probe
+      security: []
+      responses:
+        "200":
+          description: App and database are ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  database:
+                    type: string
+                    example: up
+        "503":
+          description: Database unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: degraded
+                  database:
+                    type: string
+                    example: down
 
   /ws/rooms/{code}:
     get:
-      tags: [rooms]
+      tags: [websocket]
       summary: Game WebSocket
       description: |
         Upgrade to WebSocket. Requires valid `player_session` cookie for the room.
@@ -222,8 +397,8 @@ paths:
         - `{"type":"end_turn"}` — operative ends turn early
 
         **Server → client**
-        - `{"type":"state","view":RoomViewDto}` — role-aware game state
-        - `{"type":"error","message":"..."}`
+        - `{"type":"state","view":RoomViewDto}` — role-aware room/game state
+        - `{"type":"error","message":"..."}` — localized error text
       parameters:
         - $ref: "#/components/parameters/RoomCode"
       responses:
@@ -242,8 +417,8 @@ components:
         type: string
         minLength: 4
         maxLength: 4
-        pattern: "^[A-Z0-9]{4}$"
-      description: Four-character room code.
+        pattern: "^[A-Za-z0-9]{4}$"
+      description: Four-character room code (case-insensitive).
 
   schemas:
     Language:
@@ -265,6 +440,132 @@ components:
     GamePhase:
       type: string
       enum: [CLUE, GUESSING]
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Localized error message.
+        needJoin:
+          type: boolean
+          default: false
+
+    CsrfResponse:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    SessionResponse:
+      type: object
+      properties:
+        playerId:
+          type: string
+          format: uuid
+          nullable: true
+        roomCode:
+          type: string
+          nullable: true
+
+    SetLocaleRequest:
+      type: object
+      required: [locale]
+      properties:
+        locale:
+          type: string
+          enum: [ru, en]
+
+    CreateRoomRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 64
+          description: Display name of the host player.
+        language:
+          $ref: "#/components/schemas/Language"
+          default: en
+
+    JoinRoomRequest:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          type: string
+          minLength: 4
+          maxLength: 4
+          pattern: "^[A-Za-z0-9]{4}$"
+        name:
+          type: string
+          maxLength: 64
+
+    JoinRoomInCodeRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 64
+
+    SetRoleRequest:
+      type: object
+      required: [team, role]
+      properties:
+        team:
+          $ref: "#/components/schemas/Team"
+        role:
+          $ref: "#/components/schemas/Role"
+
+    RoomActionResponse:
+      type: object
+      required: [code, viewerId]
+      properties:
+        code:
+          type: string
+        viewerId:
+          type: string
+          format: uuid
+
+    EnumOption:
+      type: object
+      required: [value, label]
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+
+    RoomOptionsDto:
+      type: object
+      required: [teams, roles]
+      properties:
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/EnumOption"
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/EnumOption"
+
+    RoomBootstrapDto:
+      type: object
+      required: [code, language, needJoin]
+      properties:
+        code:
+          type: string
+        language:
+          $ref: "#/components/schemas/Language"
+        needJoin:
+          type: boolean
+        view:
+          allOf:
+            - $ref: "#/components/schemas/RoomViewDto"
+          nullable: true
 
     CardView:
       type: object
@@ -332,10 +633,13 @@ components:
 
     RoomViewDto:
       type: object
-      description: Personalized room state sent over WebSocket.
+      description: Personalized room state (REST bootstrap and WebSocket updates).
       properties:
         status:
           $ref: "#/components/schemas/RoomStatus"
+        hostPlayerId:
+          type: string
+          format: uuid
         players:
           type: array
           items:
@@ -352,6 +656,10 @@ components:
         canGuess:
           type: boolean
         canEndTurn:
+          type: boolean
+        canStart:
+          type: boolean
+        canRandomizeTeams:
           type: boolean
 
     WsGiveClueMessage:
@@ -413,6 +721,11 @@ components:
       in: cookie
       name: player_session
       description: Ktor session cookie set after create/join room.
+    CsrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: Must match the `csrf_token` cookie on mutating requests.
 
 security:
   - PlayerSessionCookie: []

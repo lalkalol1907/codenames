@@ -26,7 +26,7 @@ useHead({
   title: () => `${localeStore.t('game.title', props.code)} — ${localeStore.t('app.title')}`,
 });
 
-const { send } = useRoomSocket(props.code);
+const { send, wsError } = useRoomSocket(props.code);
 
 const view = computed(() => roomStore.view);
 const game = computed(() => view.value?.game ?? null);
@@ -77,6 +77,7 @@ function onEndTurn() {
   <p v-else-if="error" class="alert-error" role="alert">{{ error }}</p>
 
   <div v-else-if="view && game" class="game-layout">
+    <p v-if="wsError" class="alert-error" role="alert">{{ wsError }}</p>
     <aside class="panel game-sidebar">
       <h2 class="section-title">{{ localeStore.t('lobby.players') }}</h2>
       <PlayerList :players="view.players" :viewer-id="view.viewerId" variant="game" />

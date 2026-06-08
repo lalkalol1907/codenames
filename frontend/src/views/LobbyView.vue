@@ -20,9 +20,11 @@ const loading = ref(false);
 const team = ref('RED');
 const role = ref('SPYMASTER');
 const options = ref<{ teams: EnumOption[]; roles: EnumOption[] } | null>(null);
+const linkCopied = ref(false);
+let linkCopiedTimer: ReturnType<typeof setTimeout> | undefined;
 
 roomStore.setView(props.initialView, props.code);
-useRoomSocket(props.code, { redirectOnPlaying: true, redirectOnKicked: true });
+const { wsError } = useRoomSocket(props.code, { redirectOnPlaying: true, redirectOnKicked: true });
 
 useHead({
   title: () => `${localeStore.t('lobby.title', props.code)} — ${localeStore.t('app.title')}`,
@@ -84,6 +86,26 @@ async function startGame() {
     loading.value = false;
   }
 }
+
+function roomLink(): string {
+  if (typeof window === 'undefined') return '';
+  return `${window.location.origin}/rooms/${props.code}`;
+}
+
+async function copyRoomLink() {
+  if (typeof window === 'undefined') return;
+  error.value = null;
+  try {
+    await navigator.clipboard.writeText(roomLink());
+    linkCopied.value = true;
+    clearTimeout(linkCopiedTimer);
+    linkCopiedTimer = setTimeout(() => {
+      linkCopied.value = false;
+    }, 2000);
+  } catch {
+    error.value = localeStore.t('lobby.copy_link_failed');
+  }
+}
 </script>
 
 <template>
@@ -92,7 +114,14 @@ async function startGame() {
       <p class="page-subtitle" style="margin-bottom: 0.25rem">
         {{ localeStore.t('lobby.title', code) }}
       </p>
-      <p class="room-badge">{{ code }}</p>
+      <div class="room-header">
+        <p class="room-badge">{{ code }}</p>
+        <button type="button" class="btn--secondary room-copy-link" @click="copyRoomLink">
+          {{
+            linkCopied ? localeStore.t('lobby.link_copied') : localeStore.t('lobby.copy_link')
+          }}
+        </button>
+      </div>
       <p class="room-meta">
         {{ localeStore.t('lobby.game_language') }}:
         <strong>{{ roomStore.language.toUpperCase() }}</strong>
@@ -100,7 +129,7 @@ async function startGame() {
       </p>
     </header>
 
-    <p v-if="error" class="alert-error" role="alert">{{ error }}</p>
+    <p v-if="error || wsError" class="alert-error" role="alert">{{ error || wsError }}</p>
 
     <div class="grid-lobby">
       <section class="panel">

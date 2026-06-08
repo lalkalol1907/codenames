@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import type { RoomViewDto, WsClientMessage, WsServerMessage } from '@/types/models';
 import { useRoomStore } from '@/stores/room';
@@ -22,6 +22,7 @@ export function useRoomSocket(
 ) {
   const roomStore = useRoomStore();
   const router = useRouter();
+  const wsError = ref<string | null>(null);
   let ws: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let leaveSent = false;
@@ -38,6 +39,7 @@ export function useRoomSocket(
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data) as WsServerMessage;
       if ('view' in msg && msg.view) {
+        wsError.value = null;
         roomStore.setView(msg.view, roomCode);
         if (
           options.redirectOnPlaying &&
@@ -50,7 +52,7 @@ export function useRoomSocket(
           router.push('/');
         }
       } else if ('message' in msg) {
-        alert(msg.message);
+        wsError.value = msg.message;
       }
     };
     ws.onclose = (event) => {
@@ -76,5 +78,5 @@ export function useRoomSocket(
     });
   });
 
-  return { send };
+  return { send, wsError };
 }

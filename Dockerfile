@@ -1,6 +1,6 @@
 FROM node:26.3.0 AS frontend
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
+RUN npm install -g pnpm@10.11.0
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/
 COPY src/main/resources/i18n/ src/main/resources/i18n/
 COPY frontend/ frontend/
