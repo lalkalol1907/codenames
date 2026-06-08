@@ -14,7 +14,7 @@ fun Application.configureDatabase() {
     runBlocking {
         val factory = dependencies.resolve<DatabaseFactory>()
         MigrationRunner.migrate(factory.dataSource())
-        dependencies.resolve<WordSeeder>().seedIfEmpty()
+        dependencies.resolve<WordSeeder>().syncWords()
     }
 
     monitor.subscribe(ApplicationStopping) {

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Shared JSDoc types for Codenames client scripts.
+ * @fileoverview Shared JSDoc types for Codeword client scripts.
  * Mirrors Kotlin DTOs in com.lalkalol.web.dto.ViewDto and PageModel.clientI18nJson.
  */
 
@@ -140,5 +140,5 @@
 
 /**
  * Globals injected by _app-data.ftl.
- * @typedef {Window & { i18n: I18n, initialView?: RoomViewDto }} CodenamesWindow
+ * @typedef {Window & { i18n: I18n, initialView?: RoomViewDto }} CodewordWindow
  */
