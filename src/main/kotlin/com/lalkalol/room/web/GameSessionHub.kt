@@ -2,15 +2,15 @@ package com.lalkalol.room.web
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.lalkalol.common.model.RoomStatus
+import com.lalkalol.game.dto.WsClientMessage
 import com.lalkalol.game.service.GameException
 import com.lalkalol.game.service.GameService
 import com.lalkalol.i18n.Messages
 import com.lalkalol.i18n.UiLocale
-import com.lalkalol.room.service.RoomService
-import com.lalkalol.game.dto.WsClientMessage
 import com.lalkalol.room.dto.ViewBuilder
 import com.lalkalol.room.dto.WsErrorMessage
 import com.lalkalol.room.dto.WsStateMessage
+import com.lalkalol.room.service.RoomService
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
@@ -20,16 +20,16 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 @Component
 class GameSessionHub(
     private val roomService: RoomService,
     private val gameService: GameService,
     private val objectMapper: ObjectMapper,
+    private val eventBus: RoomEventBus,
+    private val presenceTracker: PresenceTracker,
 ) {
     private val connections = ConcurrentHashMap<String, MutableSet<WebSocketSession>>()
-    private val playerConnectionCounts = ConcurrentHashMap<UUID, AtomicInteger>()
     private val pendingLeave = ConcurrentHashMap<UUID, ScheduledFuture<*>>()
     private val scheduler = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "game-session-hub").apply { isDaemon = true }
@@ -37,7 +37,7 @@ class GameSessionHub(
 
     fun registerConnection(roomCode: String, playerId: UUID, session: WebSocketSession) {
         pendingLeave.remove(playerId)?.cancel(false)
-        playerConnectionCounts.computeIfAbsent(playerId) { AtomicInteger(0) }.incrementAndGet()
+        presenceTracker.increment(playerId)
         val code = roomCode.uppercase()
         connections.computeIfAbsent(code) { ConcurrentHashMap.newKeySet() }.add(session)
     }
@@ -48,9 +48,8 @@ class GameSessionHub(
         if (connections[code]?.isEmpty() == true) {
             connections.remove(code)
         }
-        val count = playerConnectionCounts[playerId] ?: return
-        if (count.decrementAndGet() <= 0) {
-            playerConnectionCounts.remove(playerId)
+        val remaining = presenceTracker.decrement(playerId)
+        if (remaining <= 0L) {
             scheduleLeave(code, playerId)
         }
     }
@@ -78,6 +77,10 @@ class GameSessionHub(
     }
 
     fun broadcast(roomCode: String) {
+        eventBus.publish(roomCode.uppercase())
+    }
+
+    fun broadcastLocal(roomCode: String) {
         val code = roomCode.uppercase()
         val room = roomService.getRoom(code) ?: return
         val sessions = connections[code]?.toList().orEmpty()
@@ -95,7 +98,7 @@ class GameSessionHub(
         pendingLeave.remove(playerId)?.cancel(false)
         pendingLeave[playerId] = scheduler.schedule({
             pendingLeave.remove(playerId)
-            if (playerConnectionCounts.containsKey(playerId)) return@schedule
+            if (presenceTracker.count(playerId) > 0L) return@schedule
             performLeave(roomCode, playerId)
         }, LEAVE_GRACE_MS, TimeUnit.MILLISECONDS)
     }

@@ -51,6 +51,8 @@ dependencies {
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.websocket)
     implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.spring.boot.starter.data.redis)
+    implementation(libs.spring.session.data.redis)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.flyway.core)
     implementation(libs.flyway.postgresql)

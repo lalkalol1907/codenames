@@ -1,4 +1,5 @@
 server:
+  forward-headers-strategy: framework
   servlet:
     session:
       cookie:
@@ -12,6 +13,13 @@ spring:
     driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
     hikari:
       maximum-pool-size: 10
+  session:
+    store-type: redis
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
 
 app:
   environment: prod
@@ -19,6 +27,8 @@ app:
   secure-cookies: true
   session-secret: ${SESSION_SECRET:replace-with-long-random-secret}
   expose-api-docs: false
+  scaling:
+    redis-enabled: true
 
 springdoc:
   api-docs:

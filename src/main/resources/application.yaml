@@ -39,6 +39,8 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  session:
+    store-type: none
 
 app:
   environment: ${APP_ENV:dev}
@@ -46,6 +48,8 @@ app:
   secure-cookies: ${APP_SECURE_COOKIES:false}
   session-secret: ${SESSION_SECRET:dev-secret-change-me-in-production}
   expose-api-docs: ${APP_EXPOSE_API_DOCS:true}
+  scaling:
+    redis-enabled: false
 
 springdoc:
   api-docs:

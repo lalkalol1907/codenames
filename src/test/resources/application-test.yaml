@@ -10,6 +10,8 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  session:
+    store-type: none
 
 app:
   environment: test
@@ -17,6 +19,8 @@ app:
   secure-cookies: false
   session-secret: test-secret-for-unit-tests!!
   expose-api-docs: false
+  scaling:
+    redis-enabled: false
 
 springdoc:
   api-docs:

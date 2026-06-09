@@ -16,6 +16,16 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   app:
     build: .
     ports:
@@ -31,6 +41,8 @@ services:
       APP_PUBLIC_URL: http://localhost:8080
       APP_SECURE_COOKIES: "false"
       APP_EXPOSE_API_DOCS: "false"
+      # Redis scaling is off by default in local compose (app.scaling.redis-enabled=false).
+      # Set to "true" and add SPRING_DATA_REDIS_HOST=redis to test Redis mode locally.
     depends_on:
       db:
         condition: service_healthy

@@ -38,7 +38,7 @@ class RoomService(
 
     @Transactional
     fun joinRoom(code: String, playerName: String): Pair<Room, Player> {
-        val room = roomRepository.findByCode(code.uppercase())
+        val room = roomRepository.loadByCodeForUpdate(code.uppercase())
             ?: throw RoomException("Room not found")
         if (room.status != RoomStatus.LOBBY) {
             throw RoomException("Game already started")
@@ -57,7 +57,7 @@ class RoomService(
 
     @Transactional
     fun setRole(roomCode: String, playerId: UUID, team: Team, role: Role): Room {
-        val room = requireRoom(roomCode)
+        val room = requireRoomForUpdate(roomCode)
         if (room.status != RoomStatus.LOBBY) {
             throw RoomException("Cannot change role after game started")
         }
@@ -67,7 +67,7 @@ class RoomService(
 
     @Transactional
     fun randomizeTeams(roomCode: String, hostPlayerId: UUID): Room {
-        val room = requireRoom(roomCode)
+        val room = requireRoomForUpdate(roomCode)
         if (room.hostPlayerId != hostPlayerId) {
             throw RoomException("Only host can randomize teams")
         }
@@ -127,6 +127,9 @@ class RoomService(
 
     private fun requireRoom(code: String): Room =
         roomRepository.findByCode(code.uppercase()) ?: throw RoomException("Room not found")
+
+    private fun requireRoomForUpdate(code: String): Room =
+        roomRepository.loadByCodeForUpdate(code.uppercase()) ?: throw RoomException("Room not found")
 
     private fun validateRoleAssignment(room: Room, playerId: UUID, team: Team, role: Role) {
         if (room.players.none { it.id == playerId }) {

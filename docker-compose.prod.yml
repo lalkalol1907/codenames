@@ -1,6 +1,5 @@
-# Production: pre-built image, bind-mounted Postgres data.
-# Requires IMAGE_NAME, IMAGE_TAG, SESSION_SECRET, APP_PUBLIC_URL in .env.
-# TLS is expected at the load balancer; the app serves HTTP on port 8080.
+# Scale app replicas:
+#   docker compose -f docker-compose.prod.yml up -d --scale app=3
 services:
   db:
     image: postgres:16-alpine
@@ -24,14 +23,33 @@ services:
       retries: 5
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    networks:
+      - codenames-network
+    command: >
+      sh -c "redis-server
+        ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+        --save 60 1
+        --loglevel warning"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: >
+        sh -c "redis-cli
+          ${REDIS_PASSWORD:+-a ${REDIS_PASSWORD}}
+          --no-auth-warning ping | grep -q PONG"
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   app:
     image: ${IMAGE_NAME}:${IMAGE_TAG}
     env_file:
       - .env
     networks:
       - codenames-network
-    ports:
-      - "${HTTP_PORT:-8080}:8080"
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-codenames}
@@ -40,12 +58,36 @@ services:
       DATABASE_DRIVER: org.postgresql.Driver
       SESSION_SECRET: ${SESSION_SECRET}
       APP_ENV: prod
-      APP_PUBLIC_URL: ${APP_PUBLIC_URL}
-      APP_SECURE_COOKIES: ${APP_SECURE_COOKIES:-true}
+      APP_PUBLIC_URL: https://${APP_DOMAIN}
+      APP_SECURE_COOKIES: "true"
       APP_EXPOSE_API_DOCS: "false"
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    networks:
+      - codenames-network
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      ANALYTICS_DOMAIN: ${ANALYTICS_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
     restart: unless-stopped
 
   umami:
@@ -59,8 +101,6 @@ services:
       DATABASE_TYPE: postgresql
       APP_SECRET: ${UMAMI_APP_SECRET}
       DISABLE_TELEMETRY: "1"
-    ports:
-      - "${UMAMI_PORT:-3000}:3000"
     depends_on:
       db:
         condition: service_healthy
@@ -69,3 +109,8 @@ services:
 networks:
   codenames-network:
     external: false
+
+volumes:
+  redis-data:
+  caddy-data:
+  caddy-config:
