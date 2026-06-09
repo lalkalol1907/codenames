@@ -2,30 +2,21 @@ package com.lalkalol.game.service
 
 import com.lalkalol.game.model.CardType
 import com.lalkalol.game.model.GamePhase
-import com.lalkalol.game.model.Role
-import com.lalkalol.game.model.RoomStatus
-import com.lalkalol.game.model.Team
+import com.lalkalol.common.model.RoomStatus
+import com.lalkalol.common.model.Team
 import com.lalkalol.game.rules.TurnLogic
-import com.lalkalol.room.service.RoomException
-import com.lalkalol.testsupport.gameService
+import com.lalkalol.testsupport.SpringIntegrationTest
 import com.lalkalol.testsupport.requireGame
-import com.lalkalol.testsupport.roomService
 import com.lalkalol.testsupport.setupFourPlayerGame
-import com.lalkalol.testsupport.withTestApp
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
-class GameServiceTest {
-
+class GameServiceTest : SpringIntegrationTest() {
     @Test
-    fun `giveClue moves game to guessing phase`() = withTestApp {
-        val roomService = roomService()
-        val gameService = gameService()
+    fun `giveClue moves game to guessing phase`() {
         val setup = roomService.setupFourPlayerGame()
 
         val game = gameService.giveClue(setup.roomCode, setup.currentSpymaster().id, "hint", 2)
@@ -37,21 +28,17 @@ class GameServiceTest {
     }
 
     @Test
-    fun `giveClue rejects board word`() = withTestApp {
-        val roomService = roomService()
-        val gameService = gameService()
+    fun `giveClue rejects board word`() {
         val setup = roomService.setupFourPlayerGame()
         val boardWord = setup.room.requireGame().cards.first().word
 
-        assertFailsWith<GameException> {
+        assertThrows<GameException> {
             gameService.giveClue(setup.roomCode, setup.currentSpymaster().id, boardWord, 1)
         }
     }
 
     @Test
-    fun `guess reveals own team card and continues turn`() = withTestApp {
-        val roomService = roomService()
-        val gameService = gameService()
+    fun `guess reveals own team card and continues turn`() {
         val setup = roomService.setupFourPlayerGame()
         val team = setup.startingTeam()
         gameService.giveClue(setup.roomCode, setup.spymaster(team).id, "go", 1)
@@ -68,9 +55,7 @@ class GameServiceTest {
     }
 
     @Test
-    fun `guess wrong color ends turn`() = withTestApp {
-        val roomService = roomService()
-        val gameService = gameService()
+    fun `guess wrong color ends turn`() {
         val setup = roomService.setupFourPlayerGame()
         val team = setup.startingTeam()
         gameService.giveClue(setup.roomCode, setup.spymaster(team).id, "go", 2)
@@ -87,9 +72,7 @@ class GameServiceTest {
     }
 
     @Test
-    fun `assassin guess finishes game for opponent`() = withTestApp {
-        val roomService = roomService()
-        val gameService = gameService()
+    fun `assassin guess finishes game for opponent`() {
         val setup = roomService.setupFourPlayerGame()
         val team = setup.startingTeam()
         gameService.giveClue(setup.roomCode, setup.spymaster(team).id, "go", 3)
@@ -102,12 +85,10 @@ class GameServiceTest {
     }
 
     @Test
-    fun `operative cannot give clue`() = withTestApp {
-        val roomService = roomService()
-        val gameService = gameService()
+    fun `operative cannot give clue`() {
         val setup = roomService.setupFourPlayerGame()
 
-        assertFailsWith<GameException> {
+        assertThrows<GameException> {
             gameService.giveClue(setup.roomCode, setup.redOperative.id, "nope", 1)
         }
     }

@@ -1,5 +1,6 @@
 package com.lalkalol.game.model
 
+import com.lalkalol.common.model.Team
 import java.util.UUID
 
 data class Card(

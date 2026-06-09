@@ -1,6 +1,6 @@
-# Production: pre-built image, bind-mounted Postgres data and TLS keystore.
+# Production: pre-built image, bind-mounted Postgres data.
 # Requires IMAGE_NAME, IMAGE_TAG, SESSION_SECRET, APP_PUBLIC_URL in .env.
-# HTTPS: place keystore.p12 in ./certs (see scripts/pem-to-pkcs12.sh).
+# TLS is expected at the load balancer; the app serves HTTP on port 8080.
 services:
   db:
     image: postgres:16-alpine
@@ -32,10 +32,8 @@ services:
       - codenames-network
     ports:
       - "${HTTP_PORT:-8080}:8080"
-      - "${HTTPS_PORT:-443}:443"
-    volumes:
-      - ${SSL_CERTS_DIR:-./certs}:/certs:ro
     environment:
+      SPRING_PROFILES_ACTIVE: prod
       DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-codenames}
       DATABASE_USER: ${POSTGRES_USER:-codenames}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-codenames}
@@ -45,14 +43,9 @@ services:
       APP_PUBLIC_URL: ${APP_PUBLIC_URL}
       APP_SECURE_COOKIES: ${APP_SECURE_COOKIES:-true}
       APP_EXPOSE_API_DOCS: "false"
-      SSL_KEYSTORE_PASSWORD: ${SSL_KEYSTORE_PASSWORD}
-      SSL_PRIVATE_KEY_PASSWORD: ${SSL_PRIVATE_KEY_PASSWORD:-${SSL_KEYSTORE_PASSWORD}}
     depends_on:
       db:
         condition: service_healthy
-    command:
-      - ./bin/codenames
-      - -config=application-prod-https.yaml
     restart: unless-stopped
 
   umami:

@@ -1,24 +1,21 @@
 package com.lalkalol.room.service
 
-import com.lalkalol.game.model.Language
-import com.lalkalol.game.model.Role
-import com.lalkalol.game.model.RoomStatus
-import com.lalkalol.game.model.Team
-import com.lalkalol.testsupport.roomService
+import com.lalkalol.common.model.Language
+import com.lalkalol.common.model.Role
+import com.lalkalol.common.model.RoomStatus
+import com.lalkalol.common.model.Team
+import com.lalkalol.testsupport.SpringIntegrationTest
 import com.lalkalol.testsupport.setupFourPlayerGame
-import com.lalkalol.testsupport.withTestApp
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
-class RoomServiceTest {
-
+class RoomServiceTest : SpringIntegrationTest() {
     @Test
-    fun `createRoom assigns host`() = withTestApp {
-        val roomService = roomService()
+    fun `createRoom assigns host`() {
         val (room, host) = roomService.createRoom(Language.RU, "Alice")
 
         assertEquals(RoomStatus.LOBBY, room.status)
@@ -28,8 +25,7 @@ class RoomServiceTest {
     }
 
     @Test
-    fun `joinRoom adds player to lobby`() = withTestApp {
-        val roomService = roomService()
+    fun `joinRoom adds player to lobby`() {
         val (room, _) = roomService.createRoom(Language.EN, "Host")
         val (updated, guest) = roomService.joinRoom(room.code, "Guest")
 
@@ -39,23 +35,21 @@ class RoomServiceTest {
     }
 
     @Test
-    fun `duplicate role assignment is rejected`() = withTestApp {
-        val roomService = roomService()
+    fun `duplicate role assignment is rejected`() {
         val (room, host) = roomService.createRoom(Language.RU, "Host")
         val (_, guest) = roomService.joinRoom(room.code, "Guest")
 
         roomService.setRole(room.code, host.id, Team.RED, Role.SPYMASTER)
-        assertFailsWith<RoomException> {
+        assertThrows<RoomException> {
             roomService.setRole(room.code, guest.id, Team.RED, Role.SPYMASTER)
         }
     }
 
     @Test
-    fun `startGame requires four players with valid roles`() = withTestApp {
-        val roomService = roomService()
+    fun `startGame requires four players with valid roles`() {
         val (room, host) = roomService.createRoom(Language.RU, "Host")
 
-        assertFailsWith<RoomException> {
+        assertThrows<RoomException> {
             roomService.startGame(room.code, host.id)
         }
 
@@ -66,18 +60,16 @@ class RoomServiceTest {
     }
 
     @Test
-    fun `startGame is rejected when game already started`() = withTestApp {
-        val roomService = roomService()
+    fun `startGame is rejected when game already started`() {
         val setup = roomService.setupFourPlayerGame()
 
-        assertFailsWith<RoomException> {
+        assertThrows<RoomException> {
             roomService.startGame(setup.roomCode, setup.host.id)
         }
     }
 
     @Test
-    fun `randomizeTeams assigns all roles for four players`() = withTestApp {
-        val roomService = roomService()
+    fun `randomizeTeams assigns all roles for four players`() {
         val (room, host) = roomService.createRoom(Language.RU, "Host")
         roomService.joinRoom(room.code, "P2")
         roomService.joinRoom(room.code, "P3")
@@ -93,8 +85,7 @@ class RoomServiceTest {
     }
 
     @Test
-    fun `leaveRoom deletes empty room`() = withTestApp {
-        val roomService = roomService()
+    fun `leaveRoom deletes empty room`() {
         val (room, host) = roomService.createRoom(Language.RU, "Solo")
 
         val afterLeave = roomService.leaveRoom(room.code, host.id)
@@ -104,8 +95,7 @@ class RoomServiceTest {
     }
 
     @Test
-    fun `leaveRoom transfers host`() = withTestApp {
-        val roomService = roomService()
+    fun `leaveRoom transfers host`() {
         val (room, host) = roomService.createRoom(Language.RU, "Host")
         val (_, guest) = roomService.joinRoom(room.code, "Guest")
 
@@ -113,7 +103,7 @@ class RoomServiceTest {
         val updated = roomService.getRoom(room.code)
 
         assertNotNull(updated)
-        assertEquals(guest.id, updated.hostPlayerId)
+        assertEquals(guest.id, updated!!.hostPlayerId)
         assertTrue(updated.players.single().isHost)
     }
 }

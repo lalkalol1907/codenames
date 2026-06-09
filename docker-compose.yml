@@ -21,6 +21,7 @@ services:
     ports:
       - "8080:8080"
     environment:
+      SPRING_PROFILES_ACTIVE: prod
       DATABASE_URL: jdbc:postgresql://db:5432/codenames
       DATABASE_USER: codenames
       DATABASE_PASSWORD: codenames
@@ -33,9 +34,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command:
-      - ./bin/codenames
-      - -config=application-prod.yaml
 
   umami:
     image: ghcr.io/umami-software/umami:postgresql-latest

@@ -2,14 +2,13 @@ package com.lalkalol.game.rules
 
 import com.lalkalol.game.model.Card
 import com.lalkalol.game.model.CardType
-import com.lalkalol.game.model.Team
+import com.lalkalol.common.model.Team
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Test
 import java.util.UUID
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 class WinCheckerTest {
-
     @Test
     fun `assassin reveal gives win to other team`() {
         val cards = fullBoard().map { it.copy(revealed = it.type != CardType.ASSASSIN) }

@@ -1,26 +1,34 @@
 package com.lalkalol
 
-import com.lalkalol.testsupport.withTestServer
-import io.ktor.client.request.get
-import io.ktor.http.HttpStatusCode
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import com.lalkalol.testsupport.SpringIntegrationTest
+import org.junit.jupiter.api.Test
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
-class ServerTest {
-
+class ServerTest : SpringIntegrationTest() {
     @Test
-    fun `test root endpoint`() = withTestServer {
-        assertEquals(HttpStatusCode.OK, client.get("/").status)
+    fun `test root endpoint`() {
+        mockMvc.perform(get("/"))
+            .andExpect(status().isOk)
     }
 
     @Test
-    fun `unknown path serves spa shell`() = withTestServer {
-        val response = client.get("/no-such-page")
-        assertEquals(HttpStatusCode.OK, response.status)
+    fun `unknown path serves spa shell`() {
+        mockMvc.perform(get("/no-such-page"))
+            .andExpect(status().isOk)
     }
+
     @Test
-    fun `health endpoints respond ok`() = withTestServer {
-        assertEquals(HttpStatusCode.OK, client.get("/health").status)
-        assertEquals(HttpStatusCode.OK, client.get("/health/ready").status)
+    fun `static assets are served under static prefix`() {
+        mockMvc.perform(get("/static/assets/app-MZ0QUVSk.js"))
+            .andExpect(status().isOk)
+    }
+
+    @Test
+    fun `health endpoints respond ok`() {
+        mockMvc.perform(get("/health"))
+            .andExpect(status().isOk)
+        mockMvc.perform(get("/health/ready"))
+            .andExpect(status().isOk)
     }
 }

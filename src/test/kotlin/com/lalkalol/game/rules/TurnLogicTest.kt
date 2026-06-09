@@ -1,14 +1,13 @@
 package com.lalkalol.game.rules
 
 import com.lalkalol.game.model.CardType
-import com.lalkalol.game.model.Team
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import com.lalkalol.common.model.Team
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 class TurnLogicTest {
-
     @Test
     fun `nextTeam alternates red and blue`() {
         assertEquals(Team.BLUE, TurnLogic.nextTeam(Team.RED))

@@ -44,10 +44,6 @@ frontend/src/i18n/bundled/
 # Vite / vite-ssg build output (see frontend/vite.config.ts → outDir)
 src/main/resources/static/
 
-# TLS material (keep directory via certs/.gitkeep)
-certs/*
-!certs/.gitkeep
-
 # Test / coverage
 *.exec
 .jacoco/

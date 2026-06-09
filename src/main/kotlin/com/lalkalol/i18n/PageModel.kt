@@ -1,7 +1,7 @@
 package com.lalkalol.i18n
 
-import com.lalkalol.game.model.Role
-import com.lalkalol.game.model.Team
+import com.lalkalol.common.model.Role
+import com.lalkalol.common.model.Team
 
 object PageModel {
     fun teamOptions(locale: UiLocale): List<Map<String, String>> =

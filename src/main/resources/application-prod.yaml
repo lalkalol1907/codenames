@@ -1,30 +1,27 @@
-# Production HTTP only (no TLS). For HTTPS use application-prod-https.yaml.
-ktor:
-  deployment:
-    host: 0.0.0.0
-    port: 8080
-  application:
-    modules:
-      - com.lalkalol.config.AppSettingsKt.configureAppSettings
-      - com.lalkalol.config.HttpKt.configureHttp
-      - com.lalkalol.config.DIKt.configureDependencyInjection
-      - com.lalkalol.config.SecurityKt.configureSecurity
-      - com.lalkalol.config.DatabaseKt.configureDatabase
-      - com.lalkalol.config.HealthKt.configureHealth
-      - com.lalkalol.config.SessionsKt.configureSessions
-      - com.lalkalol.web.WebSocketsKt.configureWebSockets
-      - com.lalkalol.config.RoutingKt.configureRouting
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/codenames}
+    username: ${DATABASE_USER:codenames}
+    password: ${DATABASE_PASSWORD:codenames}
+    driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
+    hikari:
+      maximum-pool-size: 10
 
 app:
   environment: prod
-  publicUrl: "https://example.com"
-  secureCookies: true
-  sessionSecret: "replace-with-long-random-secret"
-  exposeApiDocs: false
+  public-url: ${APP_PUBLIC_URL:http://localhost:8080}
+  secure-cookies: true
+  session-secret: ${SESSION_SECRET:replace-with-long-random-secret}
+  expose-api-docs: false
 
-database:
-  url: "jdbc:postgresql://localhost:5432/codenames"
-  driver: org.postgresql.Driver
-  user: codenames
-  password: codenames
-  poolSize: 10
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

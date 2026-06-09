@@ -1,28 +1,31 @@
 package com.lalkalol.testsupport
 
-import com.lalkalol.config.configureAppSettings
-import com.lalkalol.config.configureDatabase
-import com.lalkalol.config.configureDependencyInjection
-import com.lalkalol.config.configureRouting
-import com.lalkalol.db.h2TestJdbcUrl
-import com.lalkalol.config.configureHealth
-import com.lalkalol.config.configureHttp
-import com.lalkalol.config.configureSecurity
-import com.lalkalol.config.configureSessions
-import com.lalkalol.game.model.Language
-import com.lalkalol.game.model.Role
-import com.lalkalol.game.model.Team
+import com.lalkalol.common.model.Language
+import com.lalkalol.common.model.Role
+import com.lalkalol.common.model.Team
 import com.lalkalol.game.service.GameService
 import com.lalkalol.room.model.Player
 import com.lalkalol.room.model.Room
 import com.lalkalol.room.service.RoomService
-import com.lalkalol.web.configureWebSockets
-import io.ktor.server.application.Application
-import io.ktor.server.config.MapApplicationConfig
-import io.ktor.server.plugins.di.dependencies
-import io.ktor.server.plugins.di.resolve
-import io.ktor.server.testing.ApplicationTestBuilder
-import io.ktor.server.testing.testApplication
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.web.servlet.MockMvc
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+abstract class SpringIntegrationTest {
+    @Autowired
+    lateinit var mockMvc: MockMvc
+
+    @Autowired
+    lateinit var roomService: RoomService
+
+    @Autowired
+    lateinit var gameService: GameService
+}
 
 data class FourPlayerGame(
     val room: Room,
@@ -54,62 +57,7 @@ data class FourPlayerGame(
         room.players.first { it.id == id }
 }
 
-fun ApplicationTestBuilder.configureTestEnvironment() {
-    environment {
-        config = MapApplicationConfig(
-            "database.driver" to "org.h2.Driver",
-            "database.url" to h2TestJdbcUrl("codenames-${System.nanoTime()}"),
-            "database.user" to "sa",
-            "database.password" to "",
-            "database.poolSize" to "5",
-            "app.environment" to "test",
-            "app.publicUrl" to "http://localhost",
-            "app.secureCookies" to "false",
-            "app.sessionSecret" to "test-secret-for-unit-tests!!",
-            "app.exposeApiDocs" to "false",
-        )
-    }
-}
-
-fun withTestApp(block: suspend Application.() -> Unit) {
-    testApplication {
-        configureTestEnvironment()
-        application {
-            configureAppSettings()
-            configureDependencyInjection()
-            configureSecurity()
-            configureDatabase()
-            configureHealth()
-        }
-        startApplication()
-        application.block()
-    }
-}
-
-fun withTestServer(block: suspend ApplicationTestBuilder.() -> Unit) {
-    testApplication {
-        configureTestEnvironment()
-        application {
-            configureAppSettings()
-            configureDependencyInjection()
-            configureSecurity()
-            configureDatabase()
-            configureHealth()
-            configureHttp()
-            configureSessions()
-            configureWebSockets()
-            configureRouting()
-        }
-        startApplication()
-        block()
-    }
-}
-
-suspend fun Application.roomService(): RoomService = dependencies.resolve()
-
-suspend fun Application.gameService(): GameService = dependencies.resolve()
-
-suspend fun RoomService.setupFourPlayerGame(language: Language = Language.RU): FourPlayerGame {
+fun RoomService.setupFourPlayerGame(language: Language = Language.RU): FourPlayerGame {
     val (room0, host) = createRoom(language, "Host")
     val redOp = joinRoom(room0.code, "RedAgent").second
     val blueSpy = joinRoom(room0.code, "BlueSpy").second
@@ -136,3 +84,6 @@ suspend fun RoomService.setupFourPlayerGame(language: Language = Language.RU): F
 }
 
 fun Room.requireGame() = checkNotNull(game) { "Expected game in room ${code}" }
+
+fun h2TestJdbcUrl(name: String): String =
+    "jdbc:h2:mem:$name;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"

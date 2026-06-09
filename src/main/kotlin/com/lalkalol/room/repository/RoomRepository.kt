@@ -1,102 +1,103 @@
 package com.lalkalol.room.repository
 
-import com.lalkalol.db.dbQuery
-import com.lalkalol.db.tables.CardsTable
-import com.lalkalol.db.tables.GamesTable
-import com.lalkalol.db.tables.PlayersTable
-import com.lalkalol.db.tables.RoomsTable
+import com.lalkalol.db.entity.PlayerEntity
+import com.lalkalol.db.entity.RoomEntity
+import com.lalkalol.db.jpa.CardJpaRepository
+import com.lalkalol.db.jpa.GameJpaRepository
+import com.lalkalol.db.jpa.PlayerJpaRepository
+import com.lalkalol.db.jpa.RoomJpaRepository
 import com.lalkalol.game.model.GameState
-import com.lalkalol.game.model.Language
-import com.lalkalol.game.model.Role
-import com.lalkalol.game.model.RoomStatus
-import com.lalkalol.game.model.Team
+import com.lalkalol.common.model.Language
+import com.lalkalol.common.model.Role
+import com.lalkalol.common.model.RoomStatus
+import com.lalkalol.common.model.Team
 import com.lalkalol.game.repository.GameRepository
 import com.lalkalol.room.model.Player
 import com.lalkalol.room.model.Room
 import com.lalkalol.room.service.RoomException
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.update
-import org.jetbrains.exposed.sql.vendors.ForUpdateOption
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.update
+import org.springframework.stereotype.Repository
 import java.util.UUID
 
+@Repository
 class RoomRepository(
+    private val roomJpa: RoomJpaRepository,
+    private val playerJpa: PlayerJpaRepository,
+    private val gameJpa: GameJpaRepository,
+    private val cardJpa: CardJpaRepository,
     private val gameRepository: GameRepository,
 ) {
-    suspend fun createRoom(code: String, language: Language, host: Player): Room = dbQuery {
-        RoomsTable.insert {
-            it[id] = host.roomId
-            it[RoomsTable.code] = code
-            it[RoomsTable.language] = language.code
-            it[hostPlayerId] = host.id
-            it[status] = RoomStatus.LOBBY.name
-        }
-        PlayersTable.insert {
-            it[id] = host.id
-            it[roomId] = host.roomId
-            it[name] = host.name
-            it[team] = null
-            it[role] = null
-            it[isHost] = true
-        }
-        requireNotNull(loadRoom(host.roomId))
+    fun createRoom(code: String, language: Language, host: Player): Room {
+        roomJpa.save(
+            RoomEntity(
+                id = host.roomId,
+                code = code,
+                language = language.code,
+                hostPlayerId = host.id,
+                status = RoomStatus.LOBBY.name,
+            ),
+        )
+        playerJpa.save(
+            PlayerEntity(
+                id = host.id,
+                roomId = host.roomId,
+                name = host.name,
+                team = null,
+                role = null,
+                isHost = true,
+            ),
+        )
+        return requireNotNull(loadRoom(host.roomId))
     }
 
-    suspend fun findByCode(code: String): Room? = dbQuery {
-        val roomRow = RoomsTable.selectAll().where { RoomsTable.code eq code.uppercase() }.singleOrNull()
-            ?: return@dbQuery null
-        loadRoom(roomRow[RoomsTable.id])
+    fun findByCode(code: String): Room? {
+        val roomRow = roomJpa.findByCode(code.uppercase()) ?: return null
+        return loadRoom(roomRow.id)
     }
 
-    suspend fun addPlayer(player: Player): Room = dbQuery {
-        PlayersTable.insert {
-            it[id] = player.id
-            it[roomId] = player.roomId
-            it[name] = player.name
-            it[team] = null
-            it[role] = null
-            it[isHost] = false
-        }
-        requireNotNull(loadRoom(player.roomId))
+    fun addPlayer(player: Player): Room {
+        playerJpa.save(
+            PlayerEntity(
+                id = player.id,
+                roomId = player.roomId,
+                name = player.name,
+                team = null,
+                role = null,
+                isHost = false,
+            ),
+        )
+        return requireNotNull(loadRoom(player.roomId))
     }
 
-    suspend fun updatePlayerRole(playerId: UUID, team: Team, role: Role): Room = dbQuery {
-        PlayersTable.update({ PlayersTable.id eq playerId }) {
-            it[PlayersTable.team] = team.name
-            it[PlayersTable.role] = role.name
-        }
-        val roomId = PlayersTable.selectAll().where { PlayersTable.id eq playerId }
-            .single()[PlayersTable.roomId]
-        requireNotNull(loadRoom(roomId))
+    fun updatePlayerRole(playerId: UUID, team: Team, role: Role): Room {
+        val entity = playerJpa.findById(playerId).orElseThrow { RoomException("Player not in room") }
+        entity.team = team.name
+        entity.role = role.name
+        playerJpa.save(entity)
+        return requireNotNull(loadRoom(entity.roomId))
     }
 
-    suspend fun assignRoles(roomId: UUID, assignments: Map<UUID, Pair<Team, Role>>): Room = dbQuery {
+    fun assignRoles(roomId: UUID, assignments: Map<UUID, Pair<Team, Role>>): Room {
         assignments.forEach { (playerId, teamRole) ->
-            PlayersTable.update({ PlayersTable.id eq playerId }) {
-                it[PlayersTable.team] = teamRole.first.name
-                it[PlayersTable.role] = teamRole.second.name
-            }
+            val entity = playerJpa.findById(playerId).orElseThrow { RoomException("Player not in room") }
+            entity.team = teamRole.first.name
+            entity.role = teamRole.second.name
+            playerJpa.save(entity)
         }
-        requireNotNull(loadRoom(roomId))
+        return requireNotNull(loadRoom(roomId))
     }
 
-    suspend fun updateStatus(roomId: UUID, status: RoomStatus): Unit = dbQuery {
-        RoomsTable.update({ RoomsTable.id eq roomId }) {
-            it[RoomsTable.status] = status.name
-        }
+    fun updateStatus(roomId: UUID, status: RoomStatus) {
+        val entity = roomJpa.findById(roomId).orElseThrow { RoomException("Room not found") }
+        entity.status = status.name
+        roomJpa.save(entity)
     }
 
-    suspend fun startGameAtomically(
+    fun startGameAtomically(
         code: String,
         hostPlayerId: UUID,
         game: GameState,
         validate: (Room) -> Unit,
-    ): Room = dbQuery {
+    ): Room {
         val room = loadByCodeForUpdate(code) ?: throw RoomException("Room not found")
         if (room.hostPlayerId != hostPlayerId) {
             throw RoomException("Only host can start the game")
@@ -106,71 +107,62 @@ class RoomRepository(
         }
         validate(room)
         gameRepository.insertGameInTransaction(game)
-        RoomsTable.update({ RoomsTable.id eq room.id }) {
-            it[RoomsTable.status] = RoomStatus.PLAYING.name
-        }
-        requireNotNull(loadRoom(room.id))
+        val entity = roomJpa.findById(room.id).orElseThrow { RoomException("Room not found") }
+        entity.status = RoomStatus.PLAYING.name
+        roomJpa.save(entity)
+        return requireNotNull(loadRoom(room.id))
     }
 
     fun loadByCodeForUpdate(code: String): Room? {
-        val roomRow = RoomsTable.selectAll()
-            .where { RoomsTable.code eq code.uppercase() }
-            .forUpdate(ForUpdateOption.ForUpdate)
-            .singleOrNull() ?: return null
-        return loadRoom(roomRow[RoomsTable.id])
+        val roomRow = roomJpa.findByCodeForUpdate(code.uppercase()) ?: return null
+        return loadRoom(roomRow.id)
     }
 
-    suspend fun codeExists(code: String): Boolean = dbQuery {
-        RoomsTable.selectAll().where { RoomsTable.code eq code.uppercase() }.any()
+    fun codeExists(code: String): Boolean = roomJpa.existsByCode(code.uppercase())
+
+    fun removePlayer(playerId: UUID) {
+        playerJpa.deleteById(playerId)
     }
 
-    suspend fun removePlayer(playerId: UUID): Unit = dbQuery {
-        PlayersTable.deleteWhere { PlayersTable.id eq playerId }
-    }
-
-    suspend fun transferHost(roomId: UUID, newHostPlayerId: UUID): Unit = dbQuery {
-        RoomsTable.update({ RoomsTable.id eq roomId }) {
-            it[hostPlayerId] = newHostPlayerId
-        }
-        PlayersTable.update({ PlayersTable.roomId eq roomId }) {
-            it[isHost] = false
-        }
-        PlayersTable.update({ PlayersTable.id eq newHostPlayerId }) {
-            it[isHost] = true
+    fun transferHost(roomId: UUID, newHostPlayerId: UUID) {
+        val room = roomJpa.findById(roomId).orElseThrow { RoomException("Room not found") }
+        room.hostPlayerId = newHostPlayerId
+        roomJpa.save(room)
+        playerJpa.findAllByRoomId(roomId).forEach { player ->
+            player.isHost = player.id == newHostPlayerId
+            playerJpa.save(player)
         }
     }
 
-    suspend fun deleteRoom(roomId: UUID): Unit = dbQuery {
-        val gameRow = GamesTable.selectAll().where { GamesTable.roomId eq roomId }.singleOrNull()
-        if (gameRow != null) {
-            val gameId = gameRow[GamesTable.id]
-            CardsTable.deleteWhere { CardsTable.gameId eq gameId }
-            GamesTable.deleteWhere { GamesTable.id eq gameId }
+    fun deleteRoom(roomId: UUID) {
+        val game = gameJpa.findByRoomId(roomId)
+        if (game != null) {
+            cardJpa.deleteAllByGameId(game.id)
+            gameJpa.deleteByRoomId(roomId)
         }
-        PlayersTable.deleteWhere { PlayersTable.roomId eq roomId }
-        RoomsTable.deleteWhere { RoomsTable.id eq roomId }
+        playerJpa.deleteAllByRoomId(roomId)
+        roomJpa.deleteById(roomId)
     }
 
     private fun loadRoom(roomId: UUID): Room? {
-        val roomRow = RoomsTable.selectAll().where { RoomsTable.id eq roomId }.singleOrNull()
-            ?: return null
-        val players = PlayersTable.selectAll().where { PlayersTable.roomId eq roomId }.map { row ->
+        val roomRow = roomJpa.findById(roomId).orElse(null) ?: return null
+        val players = playerJpa.findAllByRoomId(roomId).map { row ->
             Player(
-                id = row[PlayersTable.id],
-                roomId = row[PlayersTable.roomId],
-                name = row[PlayersTable.name],
-                team = row[PlayersTable.team]?.let { Team.valueOf(it) },
-                role = row[PlayersTable.role]?.let { Role.valueOf(it) },
-                isHost = row[PlayersTable.isHost],
+                id = row.id,
+                roomId = row.roomId,
+                name = row.name,
+                team = row.team?.let { Team.valueOf(it) },
+                role = row.role?.let { Role.valueOf(it) },
+                isHost = row.isHost,
             )
         }
         val game = gameRepository.findByRoomIdInTransaction(roomId)
         return Room(
-            id = roomRow[RoomsTable.id],
-            code = roomRow[RoomsTable.code],
-            language = Language.fromCode(roomRow[RoomsTable.language]),
-            hostPlayerId = roomRow[RoomsTable.hostPlayerId],
-            status = RoomStatus.valueOf(roomRow[RoomsTable.status]),
+            id = roomRow.id,
+            code = roomRow.code,
+            language = Language.fromCode(roomRow.language),
+            hostPlayerId = roomRow.hostPlayerId,
+            status = RoomStatus.valueOf(roomRow.status),
             players = players,
             game = game,
         )

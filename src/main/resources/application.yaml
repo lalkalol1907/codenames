@@ -1,29 +1,54 @@
-ktor:
-  deployment:
-    host: 0.0.0.0
-    port: 8080
+server:
+  port: 8080
+  servlet:
+    session:
+      cookie:
+        name: player_session
+        http-only: true
+        secure: ${APP_SECURE_COOKIES:false}
+        same-site: lax
+  compression:
+    enabled: true
+    mime-types: text/html,text/plain,text/css,application/json,application/javascript
+
+spring:
   application:
-    modules:
-      - com.lalkalol.config.AppSettingsKt.configureAppSettings
-      - com.lalkalol.config.HttpKt.configureHttp
-      - com.lalkalol.config.DIKt.configureDependencyInjection
-      - com.lalkalol.config.SecurityKt.configureSecurity
-      - com.lalkalol.config.DatabaseKt.configureDatabase
-      - com.lalkalol.config.HealthKt.configureHealth
-      - com.lalkalol.config.SessionsKt.configureSessions
-      - com.lalkalol.web.WebSocketsKt.configureWebSockets
-      - com.lalkalol.config.RoutingKt.configureRouting
+    name: codenames
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: true
+  datasource:
+    url: ${DATABASE_URL:jdbc:h2:mem:codenames;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE}
+    username: ${DATABASE_USER:sa}
+    password: ${DATABASE_PASSWORD:}
+    driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
+    hikari:
+      maximum-pool-size: 5
+      auto-commit: false
+      transaction-isolation: TRANSACTION_REPEATABLE_READ
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
 app:
-  environment: dev
-  publicUrl: "http://localhost:8080"
-  secureCookies: false
-  sessionSecret: "dev-secret-change-me-in-production"
-  exposeApiDocs: true
+  environment: ${APP_ENV:dev}
+  public-url: ${APP_PUBLIC_URL:http://localhost:8080}
+  secure-cookies: ${APP_SECURE_COOKIES:false}
+  session-secret: ${SESSION_SECRET:dev-secret-change-me-in-production}
+  expose-api-docs: ${APP_EXPOSE_API_DOCS:true}
 
-database:
-  url: "jdbc:h2:mem:codenames;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"
-  driver: org.h2.Driver
-  user: sa
-  password: ""
-  poolSize: 5
+springdoc:
+  api-docs:
+    enabled: ${app.expose-api-docs}
+  swagger-ui:
+    enabled: ${app.expose-api-docs}

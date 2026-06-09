@@ -1,10 +1,10 @@
 package com.lalkalol.room.model
 
+import com.lalkalol.common.model.Language
+import com.lalkalol.common.model.Role
+import com.lalkalol.common.model.RoomStatus
+import com.lalkalol.common.model.Team
 import com.lalkalol.game.model.GameState
-import com.lalkalol.game.model.Language
-import com.lalkalol.game.model.Role
-import com.lalkalol.game.model.RoomStatus
-import com.lalkalol.game.model.Team
 import java.util.UUID
 
 data class Player(

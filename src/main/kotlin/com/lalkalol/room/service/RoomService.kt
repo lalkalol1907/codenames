@@ -1,21 +1,26 @@
 package com.lalkalol.room.service
 
-import com.lalkalol.game.model.Language
-import com.lalkalol.game.model.Role
-import com.lalkalol.game.model.RoomStatus
-import com.lalkalol.game.model.Team
+import com.lalkalol.common.model.Language
+import com.lalkalol.common.model.Role
+import com.lalkalol.common.model.RoomStatus
+import com.lalkalol.common.model.Team
 import com.lalkalol.game.service.GameService
 import com.lalkalol.room.model.Player
 import com.lalkalol.room.model.Room
 import com.lalkalol.room.repository.RoomRepository
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Isolation
+import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 import kotlin.random.Random
 
+@Service
 class RoomService(
     private val roomRepository: RoomRepository,
     private val gameService: GameService,
 ) {
-    suspend fun createRoom(language: Language, hostName: String): Pair<Room, Player> {
+    @Transactional
+    fun createRoom(language: Language, hostName: String): Pair<Room, Player> {
         val roomId = UUID.randomUUID()
         val hostId = UUID.randomUUID()
         val host = Player(
@@ -31,7 +36,8 @@ class RoomService(
         return room to host
     }
 
-    suspend fun joinRoom(code: String, playerName: String): Pair<Room, Player> {
+    @Transactional
+    fun joinRoom(code: String, playerName: String): Pair<Room, Player> {
         val room = roomRepository.findByCode(code.uppercase())
             ?: throw RoomException("Room not found")
         if (room.status != RoomStatus.LOBBY) {
@@ -49,7 +55,8 @@ class RoomService(
         return updated to player
     }
 
-    suspend fun setRole(roomCode: String, playerId: UUID, team: Team, role: Role): Room {
+    @Transactional
+    fun setRole(roomCode: String, playerId: UUID, team: Team, role: Role): Room {
         val room = requireRoom(roomCode)
         if (room.status != RoomStatus.LOBBY) {
             throw RoomException("Cannot change role after game started")
@@ -58,7 +65,8 @@ class RoomService(
         return roomRepository.updatePlayerRole(playerId, team, role)
     }
 
-    suspend fun randomizeTeams(roomCode: String, hostPlayerId: UUID): Room {
+    @Transactional
+    fun randomizeTeams(roomCode: String, hostPlayerId: UUID): Room {
         val room = requireRoom(roomCode)
         if (room.hostPlayerId != hostPlayerId) {
             throw RoomException("Only host can randomize teams")
@@ -81,7 +89,8 @@ class RoomService(
         return roomRepository.assignRoles(room.id, assignments)
     }
 
-    suspend fun startGame(roomCode: String, hostPlayerId: UUID): Room {
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    fun startGame(roomCode: String, hostPlayerId: UUID): Room {
         val room = requireRoom(roomCode)
         if (room.hostPlayerId != hostPlayerId) {
             throw RoomException("Only host can start the game")
@@ -93,9 +102,10 @@ class RoomService(
         }
     }
 
-    suspend fun getRoom(code: String): Room? = roomRepository.findByCode(code.uppercase())
+    fun getRoom(code: String): Room? = roomRepository.findByCode(code.uppercase())
 
-    suspend fun leaveRoom(roomCode: String, playerId: UUID): Room? {
+    @Transactional
+    fun leaveRoom(roomCode: String, playerId: UUID): Room? {
         val room = roomRepository.findByCode(roomCode.uppercase()) ?: return null
         if (room.status != RoomStatus.LOBBY) {
             return room
@@ -115,7 +125,7 @@ class RoomService(
         return roomRepository.findByCode(roomCode.uppercase())
     }
 
-    private suspend fun requireRoom(code: String): Room =
+    private fun requireRoom(code: String): Room =
         roomRepository.findByCode(code.uppercase()) ?: throw RoomException("Room not found")
 
     private fun validateRoleAssignment(room: Room, playerId: UUID, team: Team, role: Role) {
@@ -144,7 +154,7 @@ class RoomService(
         }
     }
 
-    private suspend fun generateUniqueCode(): String {
+    private fun generateUniqueCode(): String {
         val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         repeat(100) {
             val code = (1..4).map { chars[Random.nextInt(chars.length)] }.joinToString("")

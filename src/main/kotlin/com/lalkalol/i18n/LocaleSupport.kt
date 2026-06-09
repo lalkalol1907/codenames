@@ -1,32 +1,37 @@
 package com.lalkalol.i18n
 
-import io.ktor.http.Cookie
-import com.lalkalol.config.appSettings
-import io.ktor.server.application.ApplicationCall
+import com.lalkalol.config.AppProperties
+import jakarta.servlet.http.Cookie
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
+import org.springframework.stereotype.Component
 
-object LocaleSupport {
-    const val COOKIE_NAME = "ui_locale"
-    private const val COOKIE_MAX_AGE = 365 * 24 * 3600
+@Component
+class LocaleSupport(
+    private val appProperties: AppProperties,
+) {
+    companion object {
+        const val COOKIE_NAME = "ui_locale"
+        private const val COOKIE_MAX_AGE = 365 * 24 * 3600
+    }
 
-    fun resolve(call: ApplicationCall): UiLocale {
-        call.request.cookies[COOKIE_NAME]?.let { UiLocale.fromCode(it) }?.let { return it }
-        val accept = call.request.headers["Accept-Language"].orEmpty()
+    fun resolve(request: HttpServletRequest): UiLocale {
+        request.cookies?.firstOrNull { it.name == COOKIE_NAME }?.value
+            ?.let { UiLocale.fromCode(it) }
+            ?.let { return it }
+        val accept = request.getHeader("Accept-Language").orEmpty()
         if (accept.contains("ru", ignoreCase = true)) return UiLocale.RU
         return UiLocale.default()
     }
 
-    fun setCookie(call: ApplicationCall, locale: UiLocale) {
-        val secure = call.application.appSettings().secureCookies
-        call.response.cookies.append(
-            Cookie(
-                name = COOKIE_NAME,
-                value = locale.code,
-                path = "/",
-                maxAge = COOKIE_MAX_AGE,
-                httpOnly = false,
-                secure = secure,
-                extensions = mapOf("SameSite" to "Lax"),
-            ),
-        )
+    fun setCookie(response: HttpServletResponse, locale: UiLocale) {
+        val cookie = Cookie(COOKIE_NAME, locale.code).apply {
+            path = "/"
+            maxAge = COOKIE_MAX_AGE
+            isHttpOnly = false
+            secure = appProperties.secureCookies
+            setAttribute("SameSite", "Lax")
+        }
+        response.addCookie(cookie)
     }
 }

@@ -1,13 +1,11 @@
 package com.lalkalol.game.service
 
-import com.lalkalol.db.dbQuery
-import com.lalkalol.db.tables.RoomsTable
 import com.lalkalol.game.model.Clue
 import com.lalkalol.game.model.GamePhase
 import com.lalkalol.game.model.GameState
-import com.lalkalol.game.model.Role
-import com.lalkalol.game.model.RoomStatus
-import com.lalkalol.game.model.Team
+import com.lalkalol.common.model.Role
+import com.lalkalol.common.model.RoomStatus
+import com.lalkalol.common.model.Team
 import com.lalkalol.game.repository.GameRepository
 import com.lalkalol.game.rules.BoardGenerator
 import com.lalkalol.game.rules.TurnLogic
@@ -15,16 +13,18 @@ import com.lalkalol.game.rules.WinChecker
 import com.lalkalol.room.model.Player
 import com.lalkalol.room.model.Room
 import com.lalkalol.room.repository.RoomRepository
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.update
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Isolation
+import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
+@Service
 class GameService(
     private val gameRepository: GameRepository,
     private val boardGenerator: BoardGenerator,
     private val roomRepository: RoomRepository,
 ) {
-    suspend fun buildNewGame(room: Room): GameState {
+    fun buildNewGame(room: Room): GameState {
         val gameId = UUID.randomUUID()
         val board = boardGenerator.generate(room.language, gameId)
         return GameState(
@@ -40,12 +40,8 @@ class GameService(
         )
     }
 
-    suspend fun startGame(room: Room): GameState {
-        val game = buildNewGame(room)
-        return gameRepository.createGame(game)
-    }
-
-    suspend fun giveClue(roomCode: String, playerId: UUID, word: String, count: Int): GameState = dbQuery {
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    fun giveClue(roomCode: String, playerId: UUID, word: String, count: Int): GameState {
         val (room, game, player) = lockedPlayingGame(roomCode, playerId)
 
         if (game.winner != null) throw GameException("Game is over")
@@ -65,10 +61,11 @@ class GameService(
             clue = Clue(clueWord, count),
             guessesRemaining = count + 1,
         )
-        gameRepository.saveGameInTransaction(game, updated)
+        return gameRepository.saveGameInTransaction(game, updated)
     }
 
-    suspend fun guess(roomCode: String, playerId: UUID, position: Int): GameState = dbQuery {
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    fun guess(roomCode: String, playerId: UUID, position: Int): GameState {
         val (room, game, player) = lockedPlayingGame(roomCode, playerId)
 
         if (game.winner != null) throw GameException("Game is over")
@@ -87,9 +84,7 @@ class GameService(
 
         val winner = WinChecker.checkWinner(revealedCards, revealedCard.type, game.currentTeam)
         val updated = if (winner != null) {
-            RoomsTable.update({ RoomsTable.id eq room.id }) {
-                it[RoomsTable.status] = RoomStatus.FINISHED.name
-            }
+            roomRepository.updateStatus(room.id, RoomStatus.FINISHED)
             game.copy(cards = revealedCards, winner = winner, phase = GamePhase.CLUE)
         } else {
             val guessesRemaining = game.guessesRemaining - 1
@@ -109,10 +104,11 @@ class GameService(
             }
         }
 
-        gameRepository.saveGameInTransaction(game, updated)
+        return gameRepository.saveGameInTransaction(game, updated)
     }
 
-    suspend fun endTurn(roomCode: String, playerId: UUID): GameState = dbQuery {
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    fun endTurn(roomCode: String, playerId: UUID): GameState {
         val (_, game, player) = lockedPlayingGame(roomCode, playerId)
 
         if (game.winner != null) throw GameException("Game is over")
@@ -126,7 +122,7 @@ class GameService(
             clue = null,
             guessesRemaining = 0,
         )
-        gameRepository.saveGameInTransaction(game, updated)
+        return gameRepository.saveGameInTransaction(game, updated)
     }
 
     private fun lockedPlayingGame(roomCode: String, playerId: UUID): Triple<Room, GameState, Player> {
@@ -135,7 +131,7 @@ class GameService(
         if (room.status != RoomStatus.PLAYING || room.game == null) {
             throw GameException("Game is not in progress")
         }
-        val game = room.game!!
+        val game = room.game
         val player = room.players.find { it.id == playerId } ?: throw GameException("Player not found")
         return Triple(room, game, player)
     }

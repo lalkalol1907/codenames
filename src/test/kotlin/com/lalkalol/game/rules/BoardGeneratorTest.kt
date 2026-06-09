@@ -1,21 +1,21 @@
 package com.lalkalol.game.rules
 
 import com.lalkalol.game.model.CardType
-import com.lalkalol.game.model.Language
-import com.lalkalol.game.model.Team
-import com.lalkalol.testsupport.withTestApp
-import io.ktor.server.plugins.di.dependencies
-import io.ktor.server.plugins.di.resolve
+import com.lalkalol.common.model.Language
+import com.lalkalol.common.model.Team
+import com.lalkalol.testsupport.SpringIntegrationTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
 import java.util.UUID
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
-class BoardGeneratorTest {
+class BoardGeneratorTest : SpringIntegrationTest() {
+    @Autowired
+    lateinit var generator: BoardGenerator
 
     @Test
-    fun `generates 25 cards with valid codenames distribution`() = withTestApp {
-        val generator = dependencies.resolve<BoardGenerator>()
+    fun `generates 25 cards with valid codenames distribution`() {
         val board = generator.generate(Language.EN, UUID.randomUUID())
 
         assertEquals(25, board.cards.size)
