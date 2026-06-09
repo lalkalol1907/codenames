@@ -3,6 +3,8 @@ package com.lalkalol
 import com.lalkalol.testsupport.SpringIntegrationTest
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.hamcrest.Matchers.containsString
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 class ServerTest : SpringIntegrationTest() {
@@ -20,8 +22,9 @@ class ServerTest : SpringIntegrationTest() {
 
     @Test
     fun `static assets are served under static prefix`() {
-        mockMvc.perform(get("/static/assets/app-MZ0QUVSk.js"))
+        mockMvc.perform(get("/static/test-fixture.txt"))
             .andExpect(status().isOk)
+            .andExpect(content().string(containsString("static-resource-handler-fixture")))
     }
 
     @Test
