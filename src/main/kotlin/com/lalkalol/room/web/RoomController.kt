@@ -172,7 +172,7 @@ class RoomController(
         }
         val team = parseTeam(body.team)
         val role = parseRole(body.role)
-        if (team == null || role == null) {
+        if (role == null || (role != Role.SPECTATOR && team == null)) {
             return errorResponse(localeSupport, request, "error.invalid_role")
         }
         return try {

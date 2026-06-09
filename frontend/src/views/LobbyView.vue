@@ -33,6 +33,7 @@ useHead({
 
 const view = computed(() => roomStore.view ?? props.initialView);
 const isHost = computed(() => view.value.hostPlayerId === view.value.viewerId);
+const isSpectator = computed(() => role.value === 'SPECTATOR');
 
 onMounted(async () => {
   if (import.meta.env.SSR) return;
@@ -47,6 +48,7 @@ onMounted(async () => {
       roles: [
         { value: 'SPYMASTER', label: localeStore.t('role.SPYMASTER') },
         { value: 'OPERATIVE', label: localeStore.t('role.OPERATIVE') },
+        { value: 'SPECTATOR', label: localeStore.t('role.SPECTATOR') },
       ],
     };
   }
@@ -56,7 +58,7 @@ async function saveRole() {
   error.value = null;
   loading.value = true;
   try {
-    await api.setRole(props.code, team.value, role.value);
+    await api.setRole(props.code, isSpectator.value ? null : team.value, role.value);
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : localeStore.t('error.unexpected');
   } finally {
@@ -141,7 +143,7 @@ async function copyRoomLink() {
         <h2 class="section-title">{{ localeStore.t('lobby.choose_team') }}</h2>
         <form class="form-stack" @submit.prevent="saveRole">
           <div class="form-row form-row--2">
-            <label class="field">
+            <label v-if="!isSpectator" class="field">
               <span class="field-label">{{ localeStore.t('lobby.team') }}</span>
               <select v-model="team" required>
                 <option

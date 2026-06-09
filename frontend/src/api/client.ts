@@ -94,7 +94,7 @@ export const api = {
     apiFetch<import('@/types/models').RoomOptionsDto>(
       `/api/rooms/${encodeURIComponent(code)}/options`,
     ),
-  setRole: (code: string, team: string, role: string) =>
+  setRole: (code: string, team: string | null, role: string) =>
     apiFetch<void>(`/api/rooms/${encodeURIComponent(code)}/role`, {
       method: 'POST',
       body: JSON.stringify({ team, role }),

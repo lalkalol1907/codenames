@@ -68,9 +68,9 @@ class RoomRepository(
         return requireNotNull(loadRoom(player.roomId))
     }
 
-    fun updatePlayerRole(playerId: UUID, team: Team, role: Role): Room {
+    fun updatePlayerRole(playerId: UUID, team: Team?, role: Role): Room {
         val entity = playerJpa.findById(playerId).orElseThrow { RoomException("Player not in room") }
-        entity.team = team.name
+        entity.team = team?.name
         entity.role = role.name
         playerJpa.save(entity)
         return requireNotNull(loadRoom(entity.roomId))

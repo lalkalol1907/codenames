@@ -56,13 +56,14 @@ class RoomService(
     }
 
     @Transactional
-    fun setRole(roomCode: String, playerId: UUID, team: Team, role: Role): Room {
+    fun setRole(roomCode: String, playerId: UUID, team: Team?, role: Role): Room {
         val room = requireRoomForUpdate(roomCode)
         if (room.status != RoomStatus.LOBBY) {
             throw RoomException("Cannot change role after game started")
         }
-        validateRoleAssignment(room, playerId, team, role)
-        return roomRepository.updatePlayerRole(playerId, team, role)
+        val effectiveTeam = if (role == Role.SPECTATOR) null else team
+        validateRoleAssignment(room, playerId, effectiveTeam, role)
+        return roomRepository.updatePlayerRole(playerId, effectiveTeam, role)
     }
 
     @Transactional
@@ -74,7 +75,8 @@ class RoomService(
         if (room.status != RoomStatus.LOBBY) {
             throw RoomException("Cannot change role after game started")
         }
-        if (room.players.size != 4) {
+        val activePlayers = room.players.filter { it.role != Role.SPECTATOR }
+        if (activePlayers.size != 4) {
             throw RoomException("Exactly 4 players required for random teams")
         }
         val slots = listOf(
@@ -83,7 +85,7 @@ class RoomService(
             Team.BLUE to Role.SPYMASTER,
             Team.BLUE to Role.OPERATIVE,
         )
-        val assignments = room.players.shuffled(Random.Default).zip(slots).associate { (player, slot) ->
+        val assignments = activePlayers.shuffled(Random.Default).zip(slots).associate { (player, slot) ->
             player.id to slot
         }
         return roomRepository.assignRoles(room.id, assignments)
@@ -131,9 +133,15 @@ class RoomService(
     private fun requireRoomForUpdate(code: String): Room =
         roomRepository.loadByCodeForUpdate(code.uppercase()) ?: throw RoomException("Room not found")
 
-    private fun validateRoleAssignment(room: Room, playerId: UUID, team: Team, role: Role) {
+    private fun validateRoleAssignment(room: Room, playerId: UUID, team: Team?, role: Role) {
         if (room.players.none { it.id == playerId }) {
             throw RoomException("Player not in room")
+        }
+        if (role == Role.SPECTATOR) {
+            return
+        }
+        if (team == null) {
+            throw RoomException("Invalid team or role")
         }
         val others = room.players.filter { it.id != playerId }
         if (others.any { it.team == team && it.role == role }) {
@@ -142,17 +150,18 @@ class RoomService(
     }
 
     private fun validateReadyToStart(room: Room) {
-        if (room.players.size < 4) {
+        val activePlayers = room.players.filter { it.role != Role.SPECTATOR }
+        if (activePlayers.size < 4) {
             throw RoomException("At least 4 players required")
         }
-        val redSpymaster = room.players.count { it.team == Team.RED && it.role == Role.SPYMASTER }
-        val redOperative = room.players.count { it.team == Team.RED && it.role == Role.OPERATIVE }
-        val blueSpymaster = room.players.count { it.team == Team.BLUE && it.role == Role.SPYMASTER }
-        val blueOperative = room.players.count { it.team == Team.BLUE && it.role == Role.OPERATIVE }
+        val redSpymaster = activePlayers.count { it.team == Team.RED && it.role == Role.SPYMASTER }
+        val redOperative = activePlayers.count { it.team == Team.RED && it.role == Role.OPERATIVE }
+        val blueSpymaster = activePlayers.count { it.team == Team.BLUE && it.role == Role.SPYMASTER }
+        val blueOperative = activePlayers.count { it.team == Team.BLUE && it.role == Role.OPERATIVE }
         if (redSpymaster != 1 || redOperative != 1 || blueSpymaster != 1 || blueOperative != 1) {
             throw RoomException("Each team needs exactly 1 spymaster and 1 operative")
         }
-        if (room.players.any { it.team == null || it.role == null }) {
+        if (activePlayers.any { it.team == null || it.role == null }) {
             throw RoomException("All players must choose team and role")
         }
     }

@@ -65,7 +65,13 @@ function teamBadgeClass(team: string | null) {
             <span v-if="player.isHost" class="player-host">{{ localeStore.t('lobby.host') }}</span>
           </div>
           <span class="player-role">
-            {{ player.team && player.role ? roleLabel(player.role) : '—' }}
+            {{
+              player.role === 'SPECTATOR'
+                ? roleLabel(player.role)
+                : player.team && player.role
+                  ? roleLabel(player.role)
+                  : '—'
+            }}
           </span>
         </template>
         <template v-else>
@@ -81,6 +87,9 @@ function teamBadgeClass(team: string | null) {
             >
               {{ teamLabel(player.team) }} · {{ roleLabel(player.role) }}
             </span>
+            <span v-else-if="player.role === 'SPECTATOR'" class="badge badge--muted">{{
+              roleLabel(player.role)
+            }}</span>
             <span v-else class="badge badge--muted">{{
               localeStore.t('lobby.choosing_role')
             }}</span>

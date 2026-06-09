@@ -17,7 +17,7 @@ data class JoinRoomInCodeRequest(
 )
 
 data class SetRoleRequest(
-    val team: String,
+    val team: String? = null,
     val role: String,
 )
 

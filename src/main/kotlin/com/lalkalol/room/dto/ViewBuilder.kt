@@ -2,6 +2,7 @@ package com.lalkalol.room.dto
 
 import com.lalkalol.common.model.Role
 import com.lalkalol.common.model.RoomStatus
+import com.lalkalol.common.model.Team
 import com.lalkalol.game.dto.CardView
 import com.lalkalol.game.dto.GameViewDto
 import com.lalkalol.game.model.CardType
@@ -33,14 +34,23 @@ object ViewBuilder {
 
         val canEndTurn = canGuess && game.guessesRemaining > 0
 
+        val activePlayers = room.players.filter { it.role != Role.SPECTATOR }
+        val requiredSlots = listOf(
+            Team.RED to Role.SPYMASTER,
+            Team.RED to Role.OPERATIVE,
+            Team.BLUE to Role.SPYMASTER,
+            Team.BLUE to Role.OPERATIVE,
+        )
         val canStart = room.status == RoomStatus.LOBBY &&
             room.hostPlayerId == viewerId &&
-            room.players.size >= 4 &&
-            room.players.all { it.team != null && it.role != null }
+            activePlayers.size == 4 &&
+            requiredSlots.all { (slotTeam, slotRole) ->
+                activePlayers.count { it.team == slotTeam && it.role == slotRole } == 1
+            }
 
         val canRandomizeTeams = room.status == RoomStatus.LOBBY &&
             room.hostPlayerId == viewerId &&
-            room.players.size == 4
+            activePlayers.size == 4
 
         return RoomViewDto(
             status = room.status.name,

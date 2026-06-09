@@ -1,7 +1,7 @@
 export type RoomStatus = 'LOBBY' | 'PLAYING' | 'FINISHED';
 export type GamePhase = 'CLUE' | 'GUESSING';
 export type TeamId = 'RED' | 'BLUE';
-export type RoleId = 'SPYMASTER' | 'OPERATIVE';
+export type RoleId = 'SPYMASTER' | 'OPERATIVE' | 'SPECTATOR';
 export type CardTypeId = 'RED' | 'BLUE' | 'NEUTRAL' | 'ASSASSIN';
 
 export interface CardView {

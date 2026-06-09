@@ -8,6 +8,7 @@ enum class Team {
 enum class Role {
     SPYMASTER,
     OPERATIVE,
+    SPECTATOR,
 }
 
 enum class RoomStatus {
