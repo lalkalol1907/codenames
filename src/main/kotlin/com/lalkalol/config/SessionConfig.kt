@@ -11,7 +11,7 @@ class SessionConfig(private val appProperties: AppProperties) {
     fun cookieSerializer(): DefaultCookieSerializer =
         DefaultCookieSerializer().apply {
             setCookieName("player_session")
-            setHttpOnly(true)
+            setUseHttpOnlyCookie(true)
             setSameSite("Lax")
             setUseSecureCookie(appProperties.secureCookies)
             setCookiePath("/")
