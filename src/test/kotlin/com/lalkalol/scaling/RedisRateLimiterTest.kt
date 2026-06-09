@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
@@ -37,7 +38,7 @@ class RedisRateLimiterTest {
         val result = limiter.tryAcquire("key")
 
         assertTrue(result)
-        verify(redisTemplate).expire("key", any(Duration::class.java))
+        verify(redisTemplate).expire(eq("key"), any(Duration::class.java))
     }
 
     @Test
@@ -48,7 +49,7 @@ class RedisRateLimiterTest {
         val result = limiter.tryAcquire("key")
 
         assertTrue(result)
-        verify(redisTemplate, never()).expire(any(), any(Duration::class.java))
+        verify(redisTemplate, never()).expire(any(String::class.java), any(Duration::class.java))
     }
 
     @Test
