@@ -35,9 +35,8 @@ export const createApp = ViteSSG(App, { routes }, ({ app, router, isClient }) =>
         try {
           const { roomCode, view } = await initDiscord();
           roomStore.setView(view, roomCode);
-          roomStore.language = view.status !== 'LOBBY'
-            ? (roomStore.language || 'en')
-            : (roomStore.language || 'en');
+          roomStore.language =
+            view.status !== 'LOBBY' ? roomStore.language || 'en' : roomStore.language || 'en';
 
           const target =
             view.status === 'PLAYING' || view.status === 'FINISHED'
