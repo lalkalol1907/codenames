@@ -139,6 +139,7 @@ jobs:
             VITE_PUBLIC_URL=${{ secrets.VITE_PUBLIC_URL }}
             VITE_UMAMI_SCRIPT_URL=${{ secrets.VITE_UMAMI_SCRIPT_URL }}
             VITE_UMAMI_WEBSITE_ID=${{ secrets.VITE_UMAMI_WEBSITE_ID }}
+            VITE_DISCORD_CLIENT_ID=${{ secrets.VITE_DISCORD_CLIENT_ID }}
 
   # Только push тега v*; после успешной сборки образа.
   # Секреты: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_PATH, DEPLOY_DOTENV;
