@@ -98,5 +98,6 @@ object ViewBuilder {
         team = team?.name,
         role = role?.name,
         isHost = isHost,
+        avatarUrl = avatarUrl,
     )
 }

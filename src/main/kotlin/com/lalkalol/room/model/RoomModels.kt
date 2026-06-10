@@ -14,6 +14,8 @@ data class Player(
     val team: Team?,
     val role: Role?,
     val isHost: Boolean,
+    val discordUserId: String? = null,
+    val avatarUrl: String? = null,
 )
 
 data class Room(
@@ -24,4 +26,6 @@ data class Room(
     val status: RoomStatus,
     val players: List<Player>,
     val game: GameState?,
+    val discordInstanceId: String? = null,
+    val discordChannelId: String? = null,
 )

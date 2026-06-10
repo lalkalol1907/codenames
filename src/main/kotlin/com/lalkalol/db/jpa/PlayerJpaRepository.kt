@@ -8,4 +8,6 @@ interface PlayerJpaRepository : JpaRepository<PlayerEntity, UUID> {
     fun findAllByRoomId(roomId: UUID): List<PlayerEntity>
 
     fun deleteAllByRoomId(roomId: UUID)
+
+    fun findByRoomIdAndDiscordUserId(roomId: UUID, discordUserId: String): PlayerEntity?
 }

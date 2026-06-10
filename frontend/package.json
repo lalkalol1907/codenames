@@ -18,6 +18,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@discord/embedded-app-sdk": "^2.5.0",
     "@unhead/vue": "^2.0.12",
     "pinia": "^3.0.1",
     "vue": "^3.5.13",

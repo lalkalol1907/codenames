@@ -21,4 +21,8 @@ class PlayerEntity(
     var role: String?,
     @Column(name = "is_host", nullable = false)
     var isHost: Boolean,
+    @Column(name = "discord_user_id", length = 64)
+    val discordUserId: String? = null,
+    @Column(name = "avatar_url", length = 256)
+    val avatarUrl: String? = null,
 )

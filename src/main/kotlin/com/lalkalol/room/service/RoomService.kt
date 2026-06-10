@@ -36,6 +36,56 @@ class RoomService(
         return room to host
     }
 
+    data class DiscordUser(
+        val id: String,
+        val username: String,
+        val avatarUrl: String?,
+    )
+
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    fun bootstrapDiscordRoom(
+        instanceId: String,
+        channelId: String,
+        discordUser: DiscordUser,
+        language: Language,
+    ): Pair<Room, Player> {
+        val existingRoom = roomRepository.loadByDiscordInstanceIdForUpdate(instanceId)
+        if (existingRoom != null) {
+            val existingPlayer = roomRepository.findDiscordPlayer(existingRoom.id, discordUser.id)
+            if (existingPlayer != null) {
+                return existingRoom to existingPlayer
+            }
+            val player = Player(
+                id = UUID.randomUUID(),
+                roomId = existingRoom.id,
+                name = discordUser.username,
+                team = null,
+                role = Role.SPECTATOR,
+                isHost = false,
+                discordUserId = discordUser.id,
+                avatarUrl = discordUser.avatarUrl,
+            )
+            val updatedRoom = roomRepository.addPlayer(player)
+            return updatedRoom to player
+        }
+
+        val roomId = UUID.randomUUID()
+        val hostId = UUID.randomUUID()
+        val host = Player(
+            id = hostId,
+            roomId = roomId,
+            name = discordUser.username,
+            team = null,
+            role = Role.SPECTATOR,
+            isHost = true,
+            discordUserId = discordUser.id,
+            avatarUrl = discordUser.avatarUrl,
+        )
+        val code = generateUniqueCode()
+        val room = roomRepository.createDiscordRoom(code, language, host, instanceId, channelId)
+        return room to host
+    }
+
     @Transactional
     fun joinRoom(code: String, playerName: String): Pair<Room, Player> {
         val room = roomRepository.loadByCodeForUpdate(code.uppercase())

@@ -16,7 +16,12 @@ class SecurityHeadersFilter(
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
-        response.setHeader("X-Frame-Options", "DENY")
+        val frameAncestors = appProperties.embed.frameAncestors.trim()
+        if (frameAncestors.isNotEmpty()) {
+            response.setHeader("Content-Security-Policy", "frame-ancestors $frameAncestors")
+        } else {
+            response.setHeader("X-Frame-Options", "DENY")
+        }
         response.setHeader("X-Content-Type-Options", "nosniff")
         response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin")
         if (appProperties.isProduction) {

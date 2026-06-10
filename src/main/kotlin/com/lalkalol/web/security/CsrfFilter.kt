@@ -17,7 +17,7 @@ class CsrfFilter(
         filterChain: FilterChain,
     ) {
         if (request.method == "POST" && request.requestURI.startsWith("/api/") &&
-            request.requestURI != "/api/csrf"
+            !isCsrfExempt(request)
         ) {
             if (!csrfSupport.validateApi(request, response)) {
                 response.status = HttpStatus.FORBIDDEN.value()
@@ -27,5 +27,14 @@ class CsrfFilter(
             }
         }
         filterChain.doFilter(request, response)
+    }
+
+    private fun isCsrfExempt(request: HttpServletRequest): Boolean {
+        val uri = request.requestURI
+        // CSRF token issuance endpoint and Discord bootstrap are authentication steps, not state-changes on behalf of an existing session
+        if (uri == "/api/csrf" || uri == "/api/discord/bootstrap") return true
+        // Requests authenticated via Bearer token don't need CSRF protection
+        if (request.getAttribute(com.lalkalol.web.session.PlayerSessionSupport.BEARER_SESSION_ATTR) != null) return true
+        return false
     }
 }

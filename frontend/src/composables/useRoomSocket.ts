@@ -2,12 +2,22 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import type { RoomViewDto, WsClientMessage, WsServerMessage } from '@/types/models';
 import { useRoomStore } from '@/stores/room';
+import { useDiscordStore } from '@/stores/discord';
 
 export type WsConnectionState = 'connecting' | 'connected' | 'reconnecting';
 
 function wsUrl(roomCode: string): string {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${location.host}/ws/rooms/${roomCode}`;
+  const base = `${protocol}//${location.host}/ws/rooms/${roomCode}`;
+  try {
+    const discordStore = useDiscordStore();
+    if (discordStore.appToken) {
+      return `${base}?token=${encodeURIComponent(discordStore.appToken)}`;
+    }
+  } catch {
+    // Pinia not ready
+  }
+  return base;
 }
 
 function isStillInRoom(view: RoomViewDto): boolean {

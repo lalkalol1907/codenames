@@ -48,6 +48,11 @@ app:
   secure-cookies: ${APP_SECURE_COOKIES:false}
   session-secret: ${SESSION_SECRET:dev-secret-change-me-in-production}
   expose-api-docs: ${APP_EXPOSE_API_DOCS:true}
+  discord:
+    client-id: ${DISCORD_CLIENT_ID:}
+    client-secret: ${DISCORD_CLIENT_SECRET:}
+  embed:
+    frame-ancestors: ${APP_EMBED_FRAME_ANCESTORS:https://discord.com https://*.discord.com https://*.discordsays.com}
   scaling:
     redis-enabled: false
 

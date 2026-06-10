@@ -56,7 +56,14 @@ function teamBadgeClass(team: string | null) {
           variant === 'game' && player.team ? `player-avatar--${player.team.toLowerCase()}` : ''
         "
       >
-        {{ (player.name || '?').charAt(0).toUpperCase() }}
+        <img
+          v-if="player.avatarUrl"
+          :src="player.avatarUrl"
+          :alt="player.name"
+          class="player-avatar__img"
+          loading="lazy"
+        />
+        <template v-else>{{ (player.name || '?').charAt(0).toUpperCase() }}</template>
       </span>
       <div class="player-info">
         <template v-if="variant === 'game'">

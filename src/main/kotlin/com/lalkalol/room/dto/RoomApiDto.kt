@@ -62,4 +62,5 @@ data class PlayerViewDto(
     val team: String?,
     val role: String?,
     val isHost: Boolean,
+    val avatarUrl: String? = null,
 )

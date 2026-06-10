@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useHead } from '@unhead/vue';
 import { api, ApiError } from '@/api/client';
 import { useLocaleStore } from '@/stores/locale';
 import { useRoomStore } from '@/stores/room';
+import { useDiscordStore } from '@/stores/discord';
 import JoinView from '@/views/JoinView.vue';
 import LobbyView from '@/views/LobbyView.vue';
 
@@ -14,6 +15,7 @@ const props = defineProps<{
 
 const localeStore = useLocaleStore();
 const roomStore = useRoomStore();
+const discordStore = useDiscordStore();
 const router = useRouter();
 
 const loading = ref(!import.meta.env.SSR);
@@ -56,9 +58,36 @@ async function loadRoom() {
   }
 }
 
+let stopDiscordWatch: (() => void) | undefined;
+
 onMounted(() => {
   if (import.meta.env.SSR) return;
+
+  if (discordStore.isDiscord) {
+    // Discord init is async; watch the store until the bootstrap view arrives,
+    // then use it directly without a separate REST call.
+    const stopWatch = watch(
+      () => roomStore.view,
+      (newView) => {
+        if (newView && roomStore.roomCode === props.code) {
+          view.value = newView;
+          roomStore.language = roomStore.language || 'en';
+          needJoin.value = false;
+          loading.value = false;
+          stopWatch();
+        }
+      },
+      { immediate: true },
+    );
+    stopDiscordWatch = stopWatch;
+    return;
+  }
+
   void loadRoom();
+});
+
+onUnmounted(() => {
+  stopDiscordWatch?.();
 });
 
 async function onJoined() {

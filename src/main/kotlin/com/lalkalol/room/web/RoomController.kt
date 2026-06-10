@@ -81,11 +81,10 @@ class RoomController(
     @GetMapping("/{code}")
     fun getRoom(
         request: HttpServletRequest,
-        httpSession: HttpSession,
         @PathVariable code: String,
     ): ResponseEntity<*> {
         val roomCode = code.uppercase()
-        val session = PlayerSessionSupport.get(httpSession)
+        val session = PlayerSessionSupport.resolve(request)
         val room = roomService.getRoom(roomCode)
         if (room == null) {
             return errorResponse(localeSupport, request, "error.room_not_found", HttpStatus.NOT_FOUND)
@@ -100,7 +99,7 @@ class RoomController(
             )
         }
         if (room.players.none { it.id == session.playerUuid() }) {
-            PlayerSessionSupport.clear(httpSession)
+            request.getSession(false)?.let { PlayerSessionSupport.clear(it) }
             return ResponseEntity.ok(
                 RoomBootstrapDto(
                     code = roomCode,
@@ -161,12 +160,11 @@ class RoomController(
     @PostMapping("/{code}/role")
     fun setRole(
         request: HttpServletRequest,
-        httpSession: HttpSession,
         @PathVariable code: String,
         @RequestBody body: SetRoleRequest,
     ): ResponseEntity<*> {
         val roomCode = code.uppercase()
-        val session = PlayerSessionSupport.get(httpSession)
+        val session = PlayerSessionSupport.resolve(request)
         if (session == null) {
             return errorResponse(localeSupport, request, "error.player_not_in_room", HttpStatus.UNAUTHORIZED)
         }
@@ -187,11 +185,10 @@ class RoomController(
     @PostMapping("/{code}/randomize")
     fun randomizeTeams(
         request: HttpServletRequest,
-        httpSession: HttpSession,
         @PathVariable code: String,
     ): ResponseEntity<*> {
         val roomCode = code.uppercase()
-        val session = PlayerSessionSupport.get(httpSession)
+        val session = PlayerSessionSupport.resolve(request)
         if (session == null) {
             return errorResponse(localeSupport, request, "error.player_not_in_room", HttpStatus.UNAUTHORIZED)
         }
@@ -207,11 +204,10 @@ class RoomController(
     @PostMapping("/{code}/start")
     fun startGame(
         request: HttpServletRequest,
-        httpSession: HttpSession,
         @PathVariable code: String,
     ): ResponseEntity<*> {
         val roomCode = code.uppercase()
-        val session = PlayerSessionSupport.get(httpSession)
+        val session = PlayerSessionSupport.resolve(request)
         if (session == null) {
             return errorResponse(localeSupport, request, "error.player_not_in_room", HttpStatus.UNAUTHORIZED)
         }

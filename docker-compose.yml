@@ -41,6 +41,8 @@ services:
       APP_PUBLIC_URL: http://localhost:8080
       APP_SECURE_COOKIES: "false"
       APP_EXPOSE_API_DOCS: "false"
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
       # Redis scaling is off by default in local compose (app.scaling.redis-enabled=false).
       # Set to "true" and add SPRING_DATA_REDIS_HOST=redis to test Redis mode locally.
     depends_on:

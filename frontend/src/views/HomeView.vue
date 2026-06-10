@@ -6,8 +6,10 @@ import { trackEvent } from '@/analytics/umami';
 import { api, ApiError } from '@/api/client';
 import { loadPlayerName, savePlayerName } from '@/composables/usePlayerName';
 import { useLocaleStore } from '@/stores/locale';
+import { useDiscordStore } from '@/stores/discord';
 
 const localeStore = useLocaleStore();
+const discordStore = useDiscordStore();
 const router = useRouter();
 
 const publicUrl = import.meta.env.VITE_PUBLIC_URL || 'http://localhost:8080';
@@ -84,6 +86,13 @@ async function joinRoom() {
 </script>
 
 <template>
+  <!-- Discord mode: SDK is initialising or already redirected to the room -->
+  <div v-if="discordStore.isDiscord" class="panel page-centered">
+    <p v-if="discordStore.error" class="alert-error" role="alert">{{ discordStore.error }}</p>
+    <p v-else class="page-subtitle">…</p>
+  </div>
+
+  <template v-else>
   <div class="hero">
     <h1 class="page-title">{{ localeStore.t('home.title') }}</h1>
     <p class="hero-tagline">Word game · Teams · Deduction</p>
@@ -145,4 +154,5 @@ async function joinRoom() {
       </form>
     </section>
   </div>
+  </template>
 </template>

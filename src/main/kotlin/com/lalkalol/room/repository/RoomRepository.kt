@@ -36,17 +36,45 @@ class RoomRepository(
                 status = RoomStatus.LOBBY.name,
             ),
         )
-        playerJpa.save(
-            PlayerEntity(
-                id = host.id,
-                roomId = host.roomId,
-                name = host.name,
-                team = null,
-                role = null,
-                isHost = true,
+        playerJpa.save(host.toEntity())
+        return requireNotNull(loadRoom(host.roomId))
+    }
+
+    fun createDiscordRoom(
+        code: String,
+        language: Language,
+        host: Player,
+        instanceId: String,
+        channelId: String,
+    ): Room {
+        roomJpa.save(
+            RoomEntity(
+                id = host.roomId,
+                code = code,
+                language = language.code,
+                hostPlayerId = host.id,
+                status = RoomStatus.LOBBY.name,
+                discordInstanceId = instanceId,
+                discordChannelId = channelId,
             ),
         )
+        playerJpa.save(host.toEntity())
         return requireNotNull(loadRoom(host.roomId))
+    }
+
+    fun findByDiscordInstanceId(instanceId: String): Room? {
+        val roomRow = roomJpa.findByDiscordInstanceId(instanceId) ?: return null
+        return loadRoom(roomRow.id)
+    }
+
+    fun loadByDiscordInstanceIdForUpdate(instanceId: String): Room? {
+        val roomRow = roomJpa.findByDiscordInstanceIdForUpdate(instanceId) ?: return null
+        return loadRoom(roomRow.id)
+    }
+
+    fun findDiscordPlayer(roomId: UUID, discordUserId: String): Player? {
+        val entity = playerJpa.findByRoomIdAndDiscordUserId(roomId, discordUserId) ?: return null
+        return entity.toDomain()
     }
 
     fun findByCode(code: String): Room? {
@@ -55,16 +83,7 @@ class RoomRepository(
     }
 
     fun addPlayer(player: Player): Room {
-        playerJpa.save(
-            PlayerEntity(
-                id = player.id,
-                roomId = player.roomId,
-                name = player.name,
-                team = null,
-                role = null,
-                isHost = false,
-            ),
-        )
+        playerJpa.save(player.toEntity())
         return requireNotNull(loadRoom(player.roomId))
     }
 
@@ -146,16 +165,7 @@ class RoomRepository(
 
     private fun loadRoom(roomId: UUID): Room? {
         val roomRow = roomJpa.findById(roomId).orElse(null) ?: return null
-        val players = playerJpa.findAllByRoomId(roomId).map { row ->
-            Player(
-                id = row.id,
-                roomId = row.roomId,
-                name = row.name,
-                team = row.team?.let { Team.valueOf(it) },
-                role = row.role?.let { Role.valueOf(it) },
-                isHost = row.isHost,
-            )
-        }
+        val players = playerJpa.findAllByRoomId(roomId).map { it.toDomain() }
         val game = gameRepository.findByRoomIdInTransaction(roomId)
         return Room(
             id = roomRow.id,
@@ -165,6 +175,30 @@ class RoomRepository(
             status = RoomStatus.valueOf(roomRow.status),
             players = players,
             game = game,
+            discordInstanceId = roomRow.discordInstanceId,
+            discordChannelId = roomRow.discordChannelId,
         )
     }
+
+    private fun PlayerEntity.toDomain() = Player(
+        id = id,
+        roomId = roomId,
+        name = name,
+        team = team?.let { Team.valueOf(it) },
+        role = role?.let { Role.valueOf(it) },
+        isHost = isHost,
+        discordUserId = discordUserId,
+        avatarUrl = avatarUrl,
+    )
+
+    private fun Player.toEntity() = PlayerEntity(
+        id = id,
+        roomId = roomId,
+        name = name,
+        team = team?.name,
+        role = role?.name,
+        isHost = isHost,
+        discordUserId = discordUserId,
+        avatarUrl = avatarUrl,
+    )
 }

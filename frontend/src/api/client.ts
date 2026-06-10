@@ -1,4 +1,5 @@
 import type { ErrorResponse } from '@/types/models';
+import { useDiscordStore } from '@/stores/discord';
 
 let csrfToken: string | null = null;
 
@@ -33,10 +34,23 @@ export class ApiError extends Error {
 
 async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.method && init.method !== 'GET' && init.method !== 'HEAD') {
+
+  // Discord mode: use Bearer token, skip cookie-based CSRF
+  let discordStore: ReturnType<typeof useDiscordStore> | null = null;
+  try {
+    discordStore = useDiscordStore();
+  } catch {
+    // Pinia may not be ready during SSR or before app mount
+  }
+  const bearerToken = discordStore?.appToken ?? null;
+
+  if (bearerToken) {
+    headers.set('Authorization', `Bearer ${bearerToken}`);
+  } else if (init.method && init.method !== 'GET' && init.method !== 'HEAD') {
     const token = await ensureCsrf();
     headers.set('X-CSRF-Token', token);
   }
+
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }

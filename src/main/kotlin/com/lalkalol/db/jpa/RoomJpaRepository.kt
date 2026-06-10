@@ -16,4 +16,10 @@ interface RoomJpaRepository : JpaRepository<RoomEntity, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM RoomEntity r WHERE r.code = :code")
     fun findByCodeForUpdate(@Param("code") code: String): RoomEntity?
+
+    fun findByDiscordInstanceId(discordInstanceId: String): RoomEntity?
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM RoomEntity r WHERE r.discordInstanceId = :instanceId")
+    fun findByDiscordInstanceIdForUpdate(@Param("instanceId") instanceId: String): RoomEntity?
 }

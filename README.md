@@ -1,6 +1,6 @@
 # Codenames Online
 
-Multiplayer word-deduction game in the browser.
+Multiplayer word-deduction game in the browser — and as a **Discord Activity** (embedded mini-app inside a voice channel).
 
 | | |
 |---|---|
@@ -10,6 +10,7 @@ Multiplayer word-deduction game in the browser.
 | **Cache / Pub-Sub** | Redis 7 — shared sessions · WS broadcast · rate-limit |
 | **Edge proxy** | Caddy 2 — auto-TLS (Let's Encrypt) · LB · WS upgrade |
 | **Analytics** | Self-hosted Umami (optional) |
+| **Discord Activity** | `@discord/embedded-app-sdk` · OAuth2 · HMAC-signed tokens |
 
 ## Requirements
 
@@ -56,14 +57,18 @@ WebSocket connections (`/ws/rooms/*`) are proxied transparently by Caddy — no 
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_*` | JDBC URL, user, password, driver |
-| `SESSION_SECRET` | Session secret (32+ chars) |
+| `SESSION_SECRET` | Session secret (32+ chars) — also used to sign Discord app tokens |
 | `APP_DOMAIN` | Public domain — used by Caddy for auto-TLS and by the app |
 | `APP_PUBLIC_URL` | Canonical public URL (`https://{APP_DOMAIN}`) |
 | `APP_ENV` | `dev` \| `prod` |
 | `APP_SECURE_COOKIES` | `true` in prod (cookies sent only over HTTPS) |
 | `APP_EXPOSE_API_DOCS` | Swagger UI at `/swagger-ui` (default off) |
+| `APP_EMBED_FRAME_ANCESTORS` | Space-separated CSP `frame-ancestors` list (default: Discord domains) |
 | `REDIS_PASSWORD` | Redis auth password (optional; omit for no-auth) |
 | `ACME_EMAIL` | Email for Let's Encrypt expiry notifications (optional) |
+| `DISCORD_CLIENT_ID` | Discord Application client ID (optional — enables Discord Activity) |
+| `DISCORD_CLIENT_SECRET` | Discord Application client secret |
+| `VITE_DISCORD_CLIENT_ID` | Client ID baked into the frontend at build time (must match above) |
 | `VITE_PUBLIC_URL` | Canonical URL baked into frontend SEO at build time |
 | `VITE_UMAMI_*` | Umami script URL + website ID (build-time, optional) |
 | `UMAMI_*` | Self-hosted Umami — DB, secret, port (`docker-compose.prod.yml`) |
@@ -71,17 +76,61 @@ WebSocket connections (`/ws/rooms/*`) are proxied transparently by Caddy — no 
 Full template: [`.env.example`](.env.example).  
 CI secret `DEPLOY_DOTENV` mirrors `.env.example`; `IMAGE_TAG` is set on tag push.
 
+> **Without Discord vars** the app runs in normal web-only mode — all Discord code stays dormant and the game works exactly as before.
+
+## Discord Activity setup
+
+To run the game as an embedded Discord Activity:
+
+1. **Create a Discord Application** at [discord.com/developers](https://discord.com/developers/applications).
+2. In the **Activities** tab enable *Embedded App* and set the **URL Mapping**:
+   - Prefix `/` → Target `https://<your-domain>`
+3. In the **OAuth2** tab add `https://<APP_ID>.discordsays.com` as a redirect URI.
+4. Add the following to your `.env`:
+   ```
+   DISCORD_CLIENT_ID=<your-app-id>
+   DISCORD_CLIENT_SECRET=<your-client-secret>
+   ```
+5. Pass `VITE_DISCORD_CLIENT_ID` at Docker build time:
+   ```bash
+   docker build \
+     --build-arg VITE_DISCORD_CLIENT_ID=<your-app-id> \
+     --build-arg VITE_PUBLIC_URL=https://<your-domain> \
+     ...
+   ```
+
+### How Discord mode works
+
+```
+Discord voice channel
+  └─ opens Activity iframe (https://<APP_ID>.discordsays.com)
+       │
+       ├─ DiscordSDK.ready() → authorize() → code
+       ├─ POST /api/discord/bootstrap {code, instanceId, channelId}
+       │    └─ backend: code → Discord access_token → /users/@me
+       │    └─ backend: upsert room by instanceId, upsert player by discord_user_id
+       │    └─ returns {appToken, discordAccessToken, roomCode, view}
+       ├─ DiscordSDK.authenticate(discordAccessToken)
+       └─ WS /ws/rooms/{code}?token=appToken
+```
+
+- Each voice channel instance gets **one room** automatically; any number of participants can join as **Spectators** (`SPECTATOR` role).
+- The host selects 4 players and assigns teams/roles; remaining participants stay as spectators and watch.
+- Additional rooms can also be created/joined by code in the normal way.
+- Web mode (browser without Discord) continues to work via cookie sessions.
+
 ## Architecture
 
 ```
 com.lalkalol/
 ├── common/model/   shared enums (Team, Role, Language, RoomStatus)
+├── discord/        Discord Activity — OAuth controller, Discord API client
 ├── game/           board, turns, game state, DTOs, WS messages
 ├── room/           lobby, players, lifecycle, REST + WebSocket handlers
 ├── words/          dictionary seed + lookup
 ├── db/             JPA entities and repositories
 ├── i18n/           messages, locale API
-├── web/            session, SPA routing, security, error DTOs
+├── web/            session, Bearer token filter, CSRF, SPA routing, security
 └── config/         Spring config, health endpoints
 ```
 
@@ -89,6 +138,7 @@ com.lalkalol/
 - Real-time fan-out over WebSockets via Redis pub/sub — each replica broadcasts to its local connections on receipt.
 - HTTP sessions shared via Spring Session Redis; no sticky sessions required.
 - Landing page prerendered with vite-ssg for SEO; SPA served from `static/`.
+- **Dual auth**: cookie session (web) or HMAC-signed Bearer token (Discord). The `BearerTokenFilter` validates the token early in the chain; all controllers use `PlayerSessionSupport.resolve(request)` which checks Bearer first, then cookie.
 
 ## API
 
@@ -97,5 +147,8 @@ com.lalkalol/
 | `GET /health` | Liveness |
 | `GET /health/ready` | DB readiness |
 | `GET /swagger-ui` | API docs (when enabled) |
-| `GET,POST /api/*` | JSON REST — rooms, session, locale, i18n |
-| `GET /ws/rooms/{code}` | WebSocket game state |
+| `GET,POST /api/rooms/*` | Room lifecycle — create, join, role, start |
+| `POST /api/discord/bootstrap` | Discord Activity — exchange OAuth code, upsert room/player, return app token |
+| `GET /api/csrf` | Issue CSRF token cookie (web mode) |
+| `GET /api/session` | Current player session info |
+| `GET /ws/rooms/{code}` | WebSocket game state (auth: cookie session or `?token=`) |

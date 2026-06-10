@@ -17,6 +17,7 @@ export interface PlayerViewDto {
   team: TeamId | null;
   role: RoleId | null;
   isHost: boolean;
+  avatarUrl?: string | null;
 }
 
 export interface GameViewDto {
@@ -69,6 +70,13 @@ export interface EnumOption {
 export interface RoomOptionsDto {
   teams: EnumOption[];
   roles: EnumOption[];
+}
+
+export interface DiscordBootstrapResponse {
+  appToken: string;
+  discordAccessToken: string;
+  roomCode: string;
+  view: RoomViewDto;
 }
 
 export type WsServerMessage =

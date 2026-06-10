@@ -19,4 +19,8 @@ class RoomEntity(
     var hostPlayerId: UUID,
     @Column(length = 16, nullable = false)
     var status: String,
+    @Column(name = "discord_instance_id", length = 64, unique = true)
+    val discordInstanceId: String? = null,
+    @Column(name = "discord_channel_id", length = 64)
+    val discordChannelId: String? = null,
 )
