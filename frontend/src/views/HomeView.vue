@@ -50,11 +50,31 @@ if (!import.meta.env.SSR) {
 }
 
 const heroPreviewColors = [
-  'RED', 'NEUTRAL', 'BLUE', 'RED', 'NEUTRAL',
-  'NEUTRAL', 'RED', 'NEUTRAL', 'BLUE', 'RED',
-  'BLUE', 'NEUTRAL', 'ASSASSIN', 'BLUE', 'NEUTRAL',
-  'RED', 'BLUE', 'NEUTRAL', 'NEUTRAL', 'RED',
-  'NEUTRAL', 'RED', 'BLUE', 'NEUTRAL', 'BLUE',
+  'RED',
+  'NEUTRAL',
+  'BLUE',
+  'RED',
+  'NEUTRAL',
+  'NEUTRAL',
+  'RED',
+  'NEUTRAL',
+  'BLUE',
+  'RED',
+  'BLUE',
+  'NEUTRAL',
+  'ASSASSIN',
+  'BLUE',
+  'NEUTRAL',
+  'RED',
+  'BLUE',
+  'NEUTRAL',
+  'NEUTRAL',
+  'RED',
+  'NEUTRAL',
+  'RED',
+  'BLUE',
+  'NEUTRAL',
+  'BLUE',
 ] as const;
 
 const gameLanguages = [

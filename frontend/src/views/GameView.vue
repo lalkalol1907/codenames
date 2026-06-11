@@ -170,9 +170,7 @@ function confettiStyle(n: number) {
           <input
             type="checkbox"
             :checked="settingsStore.holdToReveal"
-            @change="
-              (e) => settingsStore.setHoldToReveal((e.target as HTMLInputElement).checked)
-            "
+            @change="(e) => settingsStore.setHoldToReveal((e.target as HTMLInputElement).checked)"
           />
           {{ localeStore.t('settings.hold_to_reveal') }}
         </label>
