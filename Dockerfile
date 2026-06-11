@@ -5,7 +5,7 @@ COPY frontend/package.json frontend/pnpm-lock.yaml frontend/
 COPY src/main/resources/i18n/ src/main/resources/i18n/
 COPY frontend/ frontend/
 WORKDIR /app/frontend
-ARG VITE_PUBLIC_URL=https://example.com
+ARG VITE_PUBLIC_URL=https://codewords.ru
 ARG VITE_UMAMI_SCRIPT_URL
 ARG VITE_UMAMI_WEBSITE_ID
 ARG VITE_DISCORD_CLIENT_ID

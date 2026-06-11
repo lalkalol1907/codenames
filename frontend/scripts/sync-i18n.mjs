@@ -28,11 +28,24 @@ for (const lang of ['en', 'ru']) {
   );
 }
 
-const publicUrl = process.env.VITE_PUBLIC_URL || 'http://localhost:8080';
+const publicUrl = process.env.VITE_PUBLIC_URL || 'https://codewords.ru';
+
+const robots = `User-agent: *
+Allow: /
+Disallow: /rooms/
+Disallow: /openapi
+Disallow: /ws/
+
+Sitemap: ${publicUrl}/sitemap.xml
+`;
+fs.writeFileSync(path.resolve(__dirname, '../public/robots.txt'), robots);
+
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>${publicUrl}/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
   </url>
 </urlset>
 `;

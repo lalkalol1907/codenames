@@ -427,6 +427,21 @@ body {
   font-size: 0.9375rem;
 }
 
+.seo-section {
+  margin-top: 1.25rem;
+}
+
+.seo-section__text {
+  margin: 0 0 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.seo-section__text:last-child {
+  margin-bottom: 0;
+}
+
 .section-icon {
   display: inline-flex;
   flex-shrink: 0;

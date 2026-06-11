@@ -7,30 +7,52 @@ import { api, ApiError } from '@/api/client';
 import { loadPlayerName, savePlayerName } from '@/composables/usePlayerName';
 import { useLocaleStore } from '@/stores/locale';
 import { useDiscordStore } from '@/stores/discord';
+import { SITE_URL } from '@/config/site';
 
 const localeStore = useLocaleStore();
 const discordStore = useDiscordStore();
 const router = useRouter();
 
-const publicUrl = import.meta.env.VITE_PUBLIC_URL || 'http://localhost:8080';
+const pageTitle = () => `${localeStore.t('home.title')} — ${localeStore.t('app.title')}`;
 
 useHead({
-  title: () => `${localeStore.t('home.title')} — ${localeStore.t('app.title')}`,
+  title: pageTitle,
   htmlAttrs: { lang: () => localeStore.locale },
   meta: [
     { name: 'description', content: () => localeStore.t('meta.description') },
-    {
-      property: 'og:title',
-      content: () => `${localeStore.t('home.title')} — ${localeStore.t('app.title')}`,
-    },
+    { name: 'robots', content: 'index, follow' },
+    { property: 'og:title', content: pageTitle },
     { property: 'og:description', content: () => localeStore.t('meta.description') },
     { property: 'og:type', content: 'website' },
-    { property: 'og:url', content: publicUrl },
+    { property: 'og:site_name', content: () => localeStore.t('app.title') },
+    { property: 'og:url', content: `${SITE_URL}/` },
+    { property: 'og:locale', content: () => (localeStore.locale === 'ru' ? 'ru_RU' : 'en_US') },
+    { name: 'twitter:card', content: 'summary' },
+    { name: 'twitter:title', content: pageTitle },
+    { name: 'twitter:description', content: () => localeStore.t('meta.description') },
   ],
   link: [
-    { rel: 'canonical', href: `${publicUrl}/` },
-    { rel: 'alternate', hreflang: 'en', href: `${publicUrl}/` },
-    { rel: 'alternate', hreflang: 'ru', href: `${publicUrl}/` },
+    { rel: 'canonical', href: `${SITE_URL}/` },
+    { rel: 'alternate', hreflang: 'en', href: `${SITE_URL}/` },
+    { rel: 'alternate', hreflang: 'ru', href: `${SITE_URL}/` },
+    { rel: 'alternate', hreflang: 'x-default', href: `${SITE_URL}/` },
+  ],
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: () =>
+        JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'WebApplication',
+          name: localeStore.t('app.title'),
+          url: `${SITE_URL}/`,
+          description: localeStore.t('meta.description'),
+          applicationCategory: 'GameApplication',
+          operatingSystem: 'Web browser',
+          offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+          inLanguage: ['en', 'ru'],
+        }),
+    },
   ],
 });
 
@@ -199,5 +221,11 @@ async function joinRoom() {
         </form>
       </section>
     </div>
+
+    <section class="panel seo-section" aria-labelledby="seo-heading">
+      <h2 id="seo-heading" class="section-title">{{ localeStore.t('home.seo_heading') }}</h2>
+      <p class="seo-section__text">{{ localeStore.t('home.seo_p1') }}</p>
+      <p class="seo-section__text">{{ localeStore.t('home.seo_p2') }}</p>
+    </section>
   </template>
 </template>

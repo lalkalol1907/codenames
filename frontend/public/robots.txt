@@ -3,3 +3,5 @@ Allow: /
 Disallow: /rooms/
 Disallow: /openapi
 Disallow: /ws/
+
+Sitemap: https://codewords.ru/sitemap.xml
