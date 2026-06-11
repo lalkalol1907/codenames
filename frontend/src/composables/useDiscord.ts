@@ -4,6 +4,12 @@ import { useDiscordStore } from '@/stores/discord';
 
 const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID as string;
 
+let _sdk: DiscordSDK | null = null;
+
+export function getDiscordSdk(): DiscordSDK | null {
+  return _sdk;
+}
+
 export function detectDiscord(): boolean {
   if (typeof window === 'undefined') return false;
   const params = new URLSearchParams(window.location.search);
@@ -23,6 +29,7 @@ export async function initDiscord(): Promise<DiscordInitResult> {
   }
 
   const sdk = new DiscordSDK(CLIENT_ID);
+  _sdk = sdk;
   await sdk.ready();
 
   // OAuth2 authorization – Discord intercepts and returns a code

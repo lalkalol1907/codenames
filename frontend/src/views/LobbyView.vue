@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useHead } from '@unhead/vue';
 import { api, ApiError } from '@/api/client';
 import { trackEvent } from '@/analytics/umami';
 import { useRoomSocket } from '@/composables/useRoomSocket';
 import { useLocaleStore } from '@/stores/locale';
 import { useRoomStore } from '@/stores/room';
+import { useDiscordStore } from '@/stores/discord';
+import { getDiscordSdk } from '@/composables/useDiscord';
+import { useDiscordPresence } from '@/composables/useDiscordPresence';
 import type { EnumOption, RoomViewDto } from '@/types/models';
 import PlayerList from '@/components/PlayerList.vue';
 
@@ -16,6 +19,7 @@ const props = defineProps<{
 
 const localeStore = useLocaleStore();
 const roomStore = useRoomStore();
+const discordStore = useDiscordStore();
 const error = ref<string | null>(null);
 const loading = ref(false);
 const team = ref('RED');
@@ -26,6 +30,7 @@ let linkCopiedTimer: ReturnType<typeof setTimeout> | undefined;
 
 roomStore.setView(props.initialView, props.code);
 const { wsError } = useRoomSocket(props.code, { redirectOnPlaying: true, redirectOnKicked: true });
+useDiscordPresence(props.code);
 
 useHead({
   title: () => `${localeStore.t('lobby.title', props.code)} — ${localeStore.t('app.title')}`,
@@ -34,6 +39,7 @@ useHead({
 const view = computed(() => roomStore.view ?? props.initialView);
 const isHost = computed(() => view.value.hostPlayerId === view.value.viewerId);
 const isSpectator = computed(() => role.value === 'SPECTATOR');
+const isDiscord = computed(() => discordStore.isDiscord);
 
 onMounted(async () => {
   if (import.meta.env.SSR) return;
@@ -53,6 +59,27 @@ onMounted(async () => {
     };
   }
 });
+
+// Discord: автостарт когда все роли заняты — без нажатия хостом
+watch(
+  () => view.value.canStart,
+  (canStart) => {
+    if (canStart && isDiscord.value && isHost.value) {
+      void startGame();
+    }
+  },
+);
+
+async function openDiscordInvite() {
+  const sdk = getDiscordSdk();
+  if (!sdk) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (sdk.commands as any).openInviteDialog();
+  } catch {
+    // ignore — not all clients support it
+  }
+}
 
 async function saveRole() {
   error.value = null;
@@ -117,7 +144,15 @@ async function copyRoomLink() {
     <header style="margin-bottom: 1rem">
       <div class="room-header">
         <p class="room-badge">{{ code }}</p>
-        <button type="button" class="btn--secondary room-copy-link" @click="copyRoomLink">
+        <button
+          v-if="isDiscord"
+          type="button"
+          class="btn--secondary room-copy-link"
+          @click="openDiscordInvite"
+        >
+          Пригласить
+        </button>
+        <button v-else type="button" class="btn--secondary room-copy-link" @click="copyRoomLink">
           {{ linkCopied ? localeStore.t('lobby.link_copied') : localeStore.t('lobby.copy_link') }}
         </button>
       </div>

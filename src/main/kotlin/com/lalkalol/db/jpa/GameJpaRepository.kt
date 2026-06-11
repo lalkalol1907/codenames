@@ -8,4 +8,6 @@ interface GameJpaRepository : JpaRepository<GameEntity, UUID> {
     fun findByRoomId(roomId: UUID): GameEntity?
 
     fun deleteByRoomId(roomId: UUID)
+
+    fun findByRoomIdIn(roomIds: List<UUID>): List<GameEntity>
 }

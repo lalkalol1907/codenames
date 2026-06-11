@@ -11,6 +11,7 @@ data class AppProperties(
     val exposeApiDocs: Boolean = true,
     val discord: DiscordProperties = DiscordProperties(),
     val embed: EmbedProperties = EmbedProperties(),
+    val cleanup: CleanupProperties = CleanupProperties(),
 ) {
     val isProduction: Boolean get() = environment.equals("prod", ignoreCase = true)
 }
@@ -22,4 +23,10 @@ data class DiscordProperties(
 
 data class EmbedProperties(
     val frameAncestors: String = "",
+)
+
+data class CleanupProperties(
+    val enabled: Boolean = true,
+    val roomRetentionDays: Long = 30,
+    val cron: String = "0 0 3 * * *",
 )

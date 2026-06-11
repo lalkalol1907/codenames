@@ -4,6 +4,7 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import java.time.LocalDateTime
 import java.util.UUID
 
 @Entity
@@ -23,4 +24,6 @@ class RoomEntity(
     val discordInstanceId: String? = null,
     @Column(name = "discord_channel_id", length = 64)
     val discordChannelId: String? = null,
+    @Column(name = "created_at", nullable = false, updatable = false)
+    val createdAt: LocalDateTime = LocalDateTime.now(),
 )

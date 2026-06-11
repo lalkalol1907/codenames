@@ -10,6 +10,7 @@ import Controls from '@/components/Controls.vue';
 import PlayerList from '@/components/PlayerList.vue';
 import StatusBar from '@/components/StatusBar.vue';
 import { useRoomSocket } from '@/composables/useRoomSocket';
+import { useDiscordPresence } from '@/composables/useDiscordPresence';
 import { useLocaleStore } from '@/stores/locale';
 import { useRoomStore } from '@/stores/room';
 import { useSettingsStore } from '@/stores/settings';
@@ -33,6 +34,7 @@ useHead({
 });
 
 const { send, wsError, wsConnection } = useRoomSocket(props.code);
+useDiscordPresence(props.code);
 
 const view = computed(() => roomStore.view);
 const game = computed(() => view.value?.game ?? null);

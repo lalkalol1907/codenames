@@ -55,6 +55,10 @@ app:
     frame-ancestors: ${APP_EMBED_FRAME_ANCESTORS:https://discord.com https://*.discord.com https://*.discordsays.com}
   scaling:
     redis-enabled: false
+  cleanup:
+    enabled: true
+    room-retention-days: ${APP_ROOM_RETENTION_DAYS:30}
+    cron: "0 0 3 * * *"
 
 springdoc:
   api-docs:
