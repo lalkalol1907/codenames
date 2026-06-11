@@ -847,11 +847,7 @@ button.primary,
 .game-sidebar .player-item--self {
   border-color: var(--accent-glow);
   box-shadow: inset 0 0 0 1px var(--accent-glow);
-  background: linear-gradient(
-    90deg,
-    rgba(232, 168, 56, 0.08) 0%,
-    rgba(232, 168, 56, 0.03) 100%
-  );
+  background: linear-gradient(90deg, rgba(232, 168, 56, 0.08) 0%, rgba(232, 168, 56, 0.03) 100%);
 }
 
 .game-sidebar .player-item--self.player-item--red {
