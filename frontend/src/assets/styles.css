@@ -818,11 +818,13 @@ button.primary,
   align-items: stretch;
   flex: 1;
   min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 @media (min-width: 960px) {
   .game-layout {
     grid-template-columns: min(15rem, 20%) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 }
 
@@ -1120,7 +1122,7 @@ button.primary,
   .board {
     flex: 1;
     min-height: 0;
-    grid-template-rows: repeat(5, 1fr);
+    grid-template-rows: repeat(5, minmax(0, 1fr));
   }
 
   .card-slot {
@@ -1188,6 +1190,8 @@ button.primary,
   color: var(--card-face-text);
   cursor: default;
   user-select: none;
+  overflow: hidden;
+  word-break: break-word;
   box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
