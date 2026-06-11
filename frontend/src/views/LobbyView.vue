@@ -114,17 +114,14 @@ async function copyRoomLink() {
 
 <template>
   <div>
-    <header style="margin-bottom: 1.5rem">
-      <p class="page-subtitle" style="margin-bottom: 0.25rem">
-        {{ localeStore.t('lobby.title', code) }}
-      </p>
+    <header style="margin-bottom: 1rem">
       <div class="room-header">
         <p class="room-badge">{{ code }}</p>
         <button type="button" class="btn--secondary room-copy-link" @click="copyRoomLink">
           {{ linkCopied ? localeStore.t('lobby.link_copied') : localeStore.t('lobby.copy_link') }}
         </button>
       </div>
-      <p class="room-meta">
+      <p class="room-meta" style="margin: 0.25rem 0 0">
         {{ localeStore.t('lobby.game_language') }}:
         <strong>{{ roomStore.language.toUpperCase() }}</strong>
         · {{ localeStore.t('lobby.share_code') }}
