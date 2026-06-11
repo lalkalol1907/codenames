@@ -5,6 +5,7 @@ import { initUmami, trackPageView } from '@/analytics/umami';
 import App from './App.vue';
 import { routes } from './router';
 import { useLocaleStore } from './stores/locale';
+import { useThemeStore } from './stores/theme';
 import { useDiscordStore } from './stores/discord';
 import { useRoomStore } from './stores/room';
 import { detectDiscord, initDiscord } from './composables/useDiscord';
@@ -19,6 +20,9 @@ export const createApp = ViteSSG(App, { routes }, ({ app, router, isClient }) =>
   void localeStore.loadMessages();
 
   if (isClient) {
+    const themeStore = useThemeStore(pinia);
+    themeStore.applyTheme(themeStore.theme);
+
     initUmami();
     router.afterEach((to) => {
       trackPageView(to.fullPath);

@@ -133,6 +133,12 @@ async function copyRoomLink() {
 
     <p v-if="error || wsError" class="alert-error" role="alert">{{ error || wsError }}</p>
 
+    <Teleport to="body">
+      <div v-if="linkCopied" class="toast" role="status" aria-live="polite">
+        {{ localeStore.t('lobby.link_copied') }}
+      </div>
+    </Teleport>
+
     <div class="grid-lobby">
       <section class="panel">
         <h2 class="section-title">{{ localeStore.t('lobby.players') }}</h2>

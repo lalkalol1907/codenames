@@ -98,8 +98,9 @@ const lobbyView = computed(() => view.value);
 </script>
 
 <template>
-  <div v-if="loading" class="panel page-centered">
-    <p class="page-subtitle">…</p>
+  <div v-if="loading" class="panel page-centered loading-state">
+    <div class="spinner" aria-hidden="true" />
+    <p class="page-subtitle">{{ localeStore.t('game.loading') }}</p>
   </div>
 
   <p v-else-if="error" class="alert-error" role="alert">{{ error }}</p>

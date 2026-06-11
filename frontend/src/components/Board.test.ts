@@ -1,9 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 import Board from '@/components/Board.vue';
+import { useSettingsStore } from '@/stores/settings';
 import { makeCard, makeGameView, makePlayer, makeRoomView } from '@/test/fixtures';
 
 describe('Board', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    // Disable hold-to-reveal so existing click-based tests work as before
+    useSettingsStore().setHoldToReveal(false);
+  });
+
   it('renders cards sorted by position', () => {
     const view = makeRoomView({
       canGuess: false,

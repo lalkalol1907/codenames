@@ -49,6 +49,14 @@ if (!import.meta.env.SSR) {
   }
 }
 
+const heroPreviewColors = [
+  'RED', 'NEUTRAL', 'BLUE', 'RED', 'NEUTRAL',
+  'NEUTRAL', 'RED', 'NEUTRAL', 'BLUE', 'RED',
+  'BLUE', 'NEUTRAL', 'ASSASSIN', 'BLUE', 'NEUTRAL',
+  'RED', 'BLUE', 'NEUTRAL', 'NEUTRAL', 'RED',
+  'NEUTRAL', 'RED', 'BLUE', 'NEUTRAL', 'BLUE',
+] as const;
+
 const gameLanguages = [
   { value: 'en', labelKey: 'lang.en' },
   { value: 'ru', labelKey: 'lang.ru' },
@@ -87,15 +95,26 @@ async function joinRoom() {
 
 <template>
   <!-- Discord mode: SDK is initialising or already redirected to the room -->
-  <div v-if="discordStore.isDiscord" class="panel page-centered">
+  <div v-if="discordStore.isDiscord" class="panel page-centered loading-state">
     <p v-if="discordStore.error" class="alert-error" role="alert">{{ discordStore.error }}</p>
-    <p v-else class="page-subtitle">…</p>
+    <template v-else>
+      <div class="spinner" aria-hidden="true" />
+      <p class="page-subtitle">{{ localeStore.t('game.loading') }}</p>
+    </template>
   </div>
 
   <template v-else>
     <div class="hero">
       <h1 class="page-title">{{ localeStore.t('home.title') }}</h1>
-      <p class="hero-tagline">Word game · Teams · Deduction</p>
+      <p class="hero-tagline">{{ localeStore.t('home.tagline') }}</p>
+      <div class="hero-preview" aria-hidden="true">
+        <span
+          v-for="(type, i) in heroPreviewColors"
+          :key="i"
+          class="hero-preview__cell"
+          :class="`hero-preview__cell--${type}`"
+        />
+      </div>
     </div>
 
     <p v-if="error" class="alert-error" role="alert">{{ error }}</p>
