@@ -32,9 +32,7 @@ export function useDiscordPresence(roomCode: string) {
         : `Ход ${view.game?.currentTeam === 'RED' ? 'красных' : 'синих'}`;
     } else {
       details = 'Игра завершена';
-      state = view.game?.winner
-        ? `Победа ${view.game.winner === 'RED' ? 'красных' : 'синих'}`
-        : '';
+      state = view.game?.winner ? `Победа ${view.game.winner === 'RED' ? 'красных' : 'синих'}` : '';
     }
 
     try {
