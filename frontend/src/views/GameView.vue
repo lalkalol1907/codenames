@@ -152,9 +152,45 @@ function confettiStyle(n: number) {
     <p v-if="wsError" class="alert-error" role="alert">{{ wsError }}</p>
 
     <div class="game-layout">
-      <aside class="panel game-sidebar">
-        <h2 class="section-title">{{ localeStore.t('lobby.players') }}</h2>
-        <PlayerList :players="view.players" :viewer-id="view.viewerId" variant="game" />
+      <aside
+        class="panel game-sidebar"
+        :class="{ 'game-sidebar--collapsed': settingsStore.sidebarCollapsed }"
+      >
+        <div class="game-sidebar__header">
+          <h2 class="section-title game-sidebar__title">
+            {{ localeStore.t('lobby.players') }}
+          </h2>
+          <button
+            type="button"
+            class="game-sidebar__toggle"
+            :aria-expanded="!settingsStore.sidebarCollapsed"
+            :aria-label="
+              settingsStore.sidebarCollapsed
+                ? localeStore.t('sidebar.expand')
+                : localeStore.t('sidebar.collapse')
+            "
+            @click="settingsStore.toggleSidebarCollapsed()"
+          >
+            <svg
+              class="game-sidebar__chevron"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
+        <PlayerList
+          :players="view.players"
+          :viewer-id="view.viewerId"
+          variant="game"
+          :compact="settingsStore.sidebarCollapsed"
+        />
       </aside>
 
       <section class="panel game-panel">

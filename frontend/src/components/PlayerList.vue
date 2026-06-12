@@ -7,6 +7,7 @@ const props = defineProps<{
   players: PlayerViewDto[];
   viewerId?: string;
   variant?: 'lobby' | 'game';
+  compact?: boolean;
 }>();
 
 const localeStore = useLocaleStore();
@@ -37,10 +38,24 @@ function teamBadgeClass(team: string | null) {
   if (team === 'BLUE') return 'badge--blue';
   return 'badge--muted';
 }
+
+function playerRoleText(player: PlayerViewDto) {
+  if (player.role === 'SPECTATOR') return roleLabel(player.role);
+  if (player.team && player.role) return roleLabel(player.role);
+  return '—';
+}
+
+function avatarTitle(player: PlayerViewDto) {
+  if (props.variant !== 'game') return undefined;
+  const parts = [player.name];
+  if (player.isHost) parts.push(localeStore.t('lobby.host'));
+  parts.push(playerRoleText(player));
+  return parts.join(' · ');
+}
 </script>
 
 <template>
-  <ul class="player-list">
+  <ul class="player-list" :class="{ 'player-list--compact': compact }">
     <li
       v-for="player in sortedPlayers"
       :key="player.id"
@@ -48,6 +63,7 @@ function teamBadgeClass(team: string | null) {
       :class="[
         variant === 'game' && player.team ? `player-item--${player.team.toLowerCase()}` : '',
         variant === 'game' && player.id === viewerId ? 'player-item--self' : '',
+        compact ? 'player-item--avatar-only' : '',
       ]"
     >
       <span
@@ -55,6 +71,7 @@ function teamBadgeClass(team: string | null) {
         :class="
           variant === 'game' && player.team ? `player-avatar--${player.team.toLowerCase()}` : ''
         "
+        :title="avatarTitle(player)"
       >
         <img
           v-if="player.avatarUrl"
@@ -71,15 +88,7 @@ function teamBadgeClass(team: string | null) {
             <span class="player-name">{{ player.name }}</span>
             <span v-if="player.isHost" class="player-host">{{ localeStore.t('lobby.host') }}</span>
           </div>
-          <span class="player-role">
-            {{
-              player.role === 'SPECTATOR'
-                ? roleLabel(player.role)
-                : player.team && player.role
-                  ? roleLabel(player.role)
-                  : '—'
-            }}
-          </span>
+          <span class="player-role">{{ playerRoleText(player) }}</span>
         </template>
         <template v-else>
           <div class="player-name">{{ player.name }}</div>

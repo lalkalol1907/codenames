@@ -7,8 +7,15 @@ function readHoldToReveal(): boolean {
   return val === null ? true : val === 'true';
 }
 
+function readSidebarCollapsed(): boolean {
+  if (typeof localStorage === 'undefined') return true;
+  const val = localStorage.getItem('ui_sidebar_collapsed');
+  return val === null ? true : val === 'true';
+}
+
 export const useSettingsStore = defineStore('settings', () => {
   const holdToReveal = ref(readHoldToReveal());
+  const sidebarCollapsed = ref(readSidebarCollapsed());
 
   function setHoldToReveal(val: boolean) {
     holdToReveal.value = val;
@@ -17,5 +24,22 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
-  return { holdToReveal, setHoldToReveal };
+  function setSidebarCollapsed(val: boolean) {
+    sidebarCollapsed.value = val;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('ui_sidebar_collapsed', String(val));
+    }
+  }
+
+  function toggleSidebarCollapsed() {
+    setSidebarCollapsed(!sidebarCollapsed.value);
+  }
+
+  return {
+    holdToReveal,
+    setHoldToReveal,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+    toggleSidebarCollapsed,
+  };
 });
