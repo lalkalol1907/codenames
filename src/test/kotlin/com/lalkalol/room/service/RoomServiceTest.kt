@@ -35,7 +35,7 @@ class RoomServiceTest : SpringIntegrationTest() {
     }
 
     @Test
-    fun `duplicate role assignment is rejected`() {
+    fun `duplicate spymaster assignment is rejected`() {
         val (room, host) = roomService.createRoom(Language.RU, "Host")
         val (_, guest) = roomService.joinRoom(room.code, "Guest")
 
@@ -43,6 +43,57 @@ class RoomServiceTest : SpringIntegrationTest() {
         assertThrows<RoomException> {
             roomService.setRole(room.code, guest.id, Team.RED, Role.SPYMASTER)
         }
+    }
+
+    @Test
+    fun `multiple operatives per team are allowed`() {
+        val (room, host) = roomService.createRoom(Language.RU, "Host")
+        val (_, redOp2) = roomService.joinRoom(room.code, "RedOp2")
+        val (_, redOp3) = roomService.joinRoom(room.code, "RedOp3")
+        val (_, blueSpy) = roomService.joinRoom(room.code, "BlueSpy")
+        val (_, blueOp) = roomService.joinRoom(room.code, "BlueOp")
+
+        roomService.setRole(room.code, host.id, Team.RED, Role.SPYMASTER)
+        roomService.setRole(room.code, redOp2.id, Team.RED, Role.OPERATIVE)
+        roomService.setRole(room.code, redOp3.id, Team.RED, Role.OPERATIVE)
+        roomService.setRole(room.code, blueSpy.id, Team.BLUE, Role.SPYMASTER)
+        roomService.setRole(room.code, blueOp.id, Team.BLUE, Role.OPERATIVE)
+
+        val updated = roomService.getRoom(room.code)!!
+        assertEquals(2, updated.players.count { it.team == Team.RED && it.role == Role.OPERATIVE })
+    }
+
+    @Test
+    fun `operative limit per team is enforced`() {
+        val (room, host) = roomService.createRoom(Language.RU, "Host")
+        val players = (1..7).map { roomService.joinRoom(room.code, "P$it").second }
+
+        roomService.setRole(room.code, host.id, Team.RED, Role.SPYMASTER)
+        roomService.setRole(room.code, players[0].id, Team.RED, Role.OPERATIVE)
+        roomService.setRole(room.code, players[1].id, Team.RED, Role.OPERATIVE)
+        roomService.setRole(room.code, players[2].id, Team.RED, Role.OPERATIVE)
+
+        assertThrows<RoomException> {
+            roomService.setRole(room.code, players[3].id, Team.RED, Role.OPERATIVE)
+        }
+    }
+
+    @Test
+    fun `startGame allows uneven operative counts`() {
+        val (room, host) = roomService.createRoom(Language.RU, "Host")
+        val players = (1..5).map { roomService.joinRoom(room.code, "P$it").second }
+
+        roomService.setRole(room.code, host.id, Team.RED, Role.SPYMASTER)
+        roomService.setRole(room.code, players[0].id, Team.RED, Role.OPERATIVE)
+        roomService.setRole(room.code, players[1].id, Team.RED, Role.OPERATIVE)
+        roomService.setRole(room.code, players[2].id, Team.RED, Role.OPERATIVE)
+        roomService.setRole(room.code, players[3].id, Team.BLUE, Role.SPYMASTER)
+        roomService.setRole(room.code, players[4].id, Team.BLUE, Role.OPERATIVE)
+
+        val started = roomService.startGame(room.code, host.id)
+        assertEquals(RoomStatus.PLAYING, started.status)
+        assertEquals(3, started.players.count { it.team == Team.RED && it.role == Role.OPERATIVE })
+        assertEquals(1, started.players.count { it.team == Team.BLUE && it.role == Role.OPERATIVE })
     }
 
     @Test
@@ -69,7 +120,7 @@ class RoomServiceTest : SpringIntegrationTest() {
     }
 
     @Test
-    fun `randomizeTeams assigns all roles for four players`() {
+    fun `randomizeTeams assigns valid roles for four players`() {
         val (room, host) = roomService.createRoom(Language.RU, "Host")
         roomService.joinRoom(room.code, "P2")
         roomService.joinRoom(room.code, "P3")
@@ -79,9 +130,19 @@ class RoomServiceTest : SpringIntegrationTest() {
 
         assertEquals(4, randomized.players.size)
         assertEquals(1, randomized.players.count { it.team == Team.RED && it.role == Role.SPYMASTER })
-        assertEquals(1, randomized.players.count { it.team == Team.RED && it.role == Role.OPERATIVE })
         assertEquals(1, randomized.players.count { it.team == Team.BLUE && it.role == Role.SPYMASTER })
-        assertEquals(1, randomized.players.count { it.team == Team.BLUE && it.role == Role.OPERATIVE })
+        assertTrue(RoomTeamRules.isReadyToStart(randomized.players))
+    }
+
+    @Test
+    fun `randomizeTeams assigns valid roles for six players`() {
+        val (room, host) = roomService.createRoom(Language.RU, "Host")
+        (2..6).forEach { roomService.joinRoom(room.code, "P$it") }
+
+        val randomized = roomService.randomizeTeams(room.code, host.id)
+
+        assertEquals(6, randomized.players.size)
+        assertTrue(RoomTeamRules.isReadyToStart(randomized.players))
     }
 
     @Test

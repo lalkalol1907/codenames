@@ -59,6 +59,8 @@ dependencies {
     implementation(libs.postgresql)
     runtimeOnly(libs.h2)
     implementation(libs.springdoc.openapi)
+    implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.micrometer.registry.prometheus)
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(kotlin("test"))

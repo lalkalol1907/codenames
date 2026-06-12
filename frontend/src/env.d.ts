@@ -9,8 +9,6 @@ declare module '*.vue' {
 
 interface ImportMetaEnv {
   readonly VITE_PUBLIC_URL: string;
-  readonly VITE_UMAMI_SCRIPT_URL?: string;
-  readonly VITE_UMAMI_WEBSITE_ID?: string;
 }
 
 interface ImportMeta {

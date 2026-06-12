@@ -24,7 +24,7 @@ export function useDiscordPresence(roomCode: string) {
 
     if (view.status === 'LOBBY') {
       details = `Лобби · ${view.players.length} чел.`;
-      state = activePlayers > 0 ? `${activePlayers} из 4 готовы` : 'Ожидание игроков';
+      state = activePlayers > 0 ? `${activePlayers} активных` : 'Ожидание игроков';
     } else if (view.status === 'PLAYING') {
       details = 'Идёт игра';
       state = view.game?.winner

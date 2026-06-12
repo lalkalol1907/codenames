@@ -5,6 +5,7 @@ import com.lalkalol.common.model.Role
 import com.lalkalol.common.model.Team
 import com.lalkalol.i18n.LocaleSupport
 import com.lalkalol.i18n.PageModel
+import com.lalkalol.metrics.MetricsService
 import com.lalkalol.room.service.RoomException
 import com.lalkalol.room.service.RoomService
 import com.lalkalol.web.advice.errorResponse
@@ -36,6 +37,7 @@ class RoomController(
     private val roomService: RoomService,
     private val hub: GameSessionHub,
     private val localeSupport: LocaleSupport,
+    private val metrics: MetricsService,
 ) {
     @PostMapping
     fun createRoom(
@@ -72,6 +74,7 @@ class RoomController(
             val (room, player) = roomService.joinRoom(code, name)
             PlayerSessionSupport.set(httpSession, player.id.toString(), room.code)
             hub.broadcast(room.code)
+            metrics.incrementRoomJoins("home")
             ResponseEntity.ok(RoomActionResponse(room.code, player.id.toString()))
         } catch (e: RoomException) {
             exceptionResponse(localeSupport, request, e.message)
@@ -151,6 +154,7 @@ class RoomController(
             val (room, player) = roomService.joinRoom(roomCode, name)
             PlayerSessionSupport.set(httpSession, player.id.toString(), room.code)
             hub.broadcast(room.code)
+            metrics.incrementRoomJoins("link")
             ResponseEntity.ok(RoomActionResponse(room.code, player.id.toString()))
         } catch (e: RoomException) {
             exceptionResponse(localeSupport, request, e.message)

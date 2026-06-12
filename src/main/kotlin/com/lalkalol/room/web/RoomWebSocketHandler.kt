@@ -1,6 +1,7 @@
 package com.lalkalol.room.web
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.lalkalol.metrics.MetricsService
 import com.lalkalol.room.service.RoomService
 import com.lalkalol.room.dto.ViewBuilder
 import com.lalkalol.room.dto.WsStateMessage
@@ -16,6 +17,7 @@ class RoomWebSocketHandler(
     private val hub: GameSessionHub,
     private val roomService: RoomService,
     private val objectMapper: ObjectMapper,
+    private val metrics: MetricsService,
 ) : TextWebSocketHandler() {
     override fun afterConnectionEstablished(session: WebSocketSession) {
         val code = session.attributes["roomCode"] as? String ?: run {
@@ -27,6 +29,7 @@ class RoomWebSocketHandler(
             return
         }
         hub.registerConnection(code, playerId, session)
+        metrics.incrementWsConnections()
         val room = roomService.getRoom(code)
         if (room != null) {
             val view = ViewBuilder.buildRoomView(room, playerId)
@@ -46,5 +49,6 @@ class RoomWebSocketHandler(
         val code = session.attributes["roomCode"] as? String ?: return
         val playerId = session.attributes[GameSessionHub.PLAYER_ID_ATTR] as? UUID ?: return
         hub.unregisterConnection(code, playerId, session)
+        metrics.decrementWsConnections()
     }
 }

@@ -60,6 +60,20 @@ app:
     room-retention-days: ${APP_ROOM_RETENTION_DAYS:30}
     cron: "0 0 3 * * *"
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: never
+  metrics:
+    tags:
+      application: codenames
+
 springdoc:
   api-docs:
     enabled: ${app.expose-api-docs}

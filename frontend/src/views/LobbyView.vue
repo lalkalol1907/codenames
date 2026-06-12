@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useHead } from '@unhead/vue';
 import { api, ApiError } from '@/api/client';
-import { trackEvent } from '@/analytics/umami';
 import { useRoomSocket } from '@/composables/useRoomSocket';
 import { useLocaleStore } from '@/stores/locale';
 import { useRoomStore } from '@/stores/room';
@@ -39,6 +38,9 @@ useHead({
 const view = computed(() => roomStore.view ?? props.initialView);
 const isHost = computed(() => view.value.hostPlayerId === view.value.viewerId);
 const isSpectator = computed(() => role.value === 'SPECTATOR');
+const activePlayerCount = computed(
+  () => view.value.players.filter((p) => p.role && p.role !== 'SPECTATOR').length,
+);
 const isDiscord = computed(() => discordStore.isDiscord);
 
 onMounted(async () => {
@@ -110,7 +112,6 @@ async function startGame() {
   loading.value = true;
   try {
     await api.startGame(props.code);
-    trackEvent('game_started');
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : localeStore.t('error.unexpected');
   } finally {
@@ -234,7 +235,7 @@ async function copyRoomLink() {
             {{
               view.canStart
                 ? localeStore.t('lobby.start_hint')
-                : localeStore.t('lobby.waiting_hint', view.players.length)
+                : localeStore.t('lobby.waiting_hint', activePlayerCount)
             }}
           </p>
         </div>

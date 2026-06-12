@@ -21,6 +21,7 @@ class SpaNotFoundAdvice(
 
     private fun shouldServeSpa(uri: String): Boolean {
         if (uri.startsWith("/api") || uri.startsWith("/ws") || uri.startsWith("/health")) return false
+        if (uri.startsWith("/actuator")) return false
         if (uri.startsWith("/swagger-ui") || uri.startsWith("/v3")) return false
         if (uri.startsWith("/assets/") || uri.startsWith("/static/")) return false
         return !uri.contains('.')

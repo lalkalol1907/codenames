@@ -137,8 +137,6 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             VITE_PUBLIC_URL=${{ secrets.VITE_PUBLIC_URL }}
-            VITE_UMAMI_SCRIPT_URL=${{ secrets.VITE_UMAMI_SCRIPT_URL }}
-            VITE_UMAMI_WEBSITE_ID=${{ secrets.VITE_UMAMI_WEBSITE_ID }}
             VITE_DISCORD_CLIENT_ID=${{ secrets.VITE_DISCORD_CLIENT_ID }}
 
   # Только push тега v*; после успешной сборки образа.

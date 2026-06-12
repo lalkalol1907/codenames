@@ -10,6 +10,7 @@ import com.lalkalol.game.repository.GameRepository
 import com.lalkalol.game.rules.BoardGenerator
 import com.lalkalol.game.rules.TurnLogic
 import com.lalkalol.game.rules.WinChecker
+import com.lalkalol.metrics.MetricsService
 import com.lalkalol.room.model.Player
 import com.lalkalol.room.model.Room
 import com.lalkalol.room.repository.RoomRepository
@@ -23,6 +24,7 @@ class GameService(
     private val gameRepository: GameRepository,
     private val boardGenerator: BoardGenerator,
     private val roomRepository: RoomRepository,
+    private val metrics: MetricsService,
 ) {
     fun buildNewGame(room: Room): GameState {
         val gameId = UUID.randomUUID()
@@ -85,6 +87,7 @@ class GameService(
         val winner = WinChecker.checkWinner(revealedCards, revealedCard.type, game.currentTeam)
         val updated = if (winner != null) {
             roomRepository.updateStatus(room.id, RoomStatus.FINISHED)
+            metrics.incrementGamesFinished(winner.name.lowercase())
             game.copy(cards = revealedCards, winner = winner, phase = GamePhase.CLUE)
         } else {
             val guessesRemaining = game.guessesRemaining - 1

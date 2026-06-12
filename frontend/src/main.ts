@@ -1,7 +1,6 @@
 import { createPinia } from 'pinia';
 import { ViteSSG } from 'vite-ssg';
 import { createHead } from '@unhead/vue/client';
-import { initUmami, trackPageView } from '@/analytics/umami';
 import App from './App.vue';
 import { routes } from './router';
 import { useLocaleStore } from './stores/locale';
@@ -22,11 +21,6 @@ export const createApp = ViteSSG(App, { routes }, ({ app, router, isClient }) =>
   if (isClient) {
     const themeStore = useThemeStore(pinia);
     themeStore.applyTheme(themeStore.theme);
-
-    initUmami();
-    router.afterEach((to) => {
-      trackPageView(to.fullPath);
-    });
 
     const discordStore = useDiscordStore(pinia);
     const roomStore = useRoomStore(pinia);

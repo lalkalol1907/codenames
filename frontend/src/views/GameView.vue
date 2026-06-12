@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useHead } from '@unhead/vue';
-import { trackEvent } from '@/analytics/umami';
 import { api, ApiError } from '@/api/client';
 import Board from '@/components/Board.vue';
 import CluePanel from '@/components/CluePanel.vue';
@@ -56,7 +55,6 @@ watch(
   () => game.value?.winner,
   (winner, previous) => {
     if (winner && !previous) {
-      trackEvent('game_finished', { winner });
       overlayDismissed.value = false;
     }
   },

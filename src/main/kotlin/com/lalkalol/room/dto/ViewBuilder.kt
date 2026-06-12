@@ -10,6 +10,7 @@ import com.lalkalol.game.model.GamePhase
 import com.lalkalol.game.model.GameState
 import com.lalkalol.room.model.Player
 import com.lalkalol.room.model.Room
+import com.lalkalol.room.service.RoomTeamRules
 import java.util.UUID
 
 object ViewBuilder {
@@ -34,23 +35,14 @@ object ViewBuilder {
 
         val canEndTurn = canGuess && game.guessesRemaining > 0
 
-        val activePlayers = room.players.filter { it.role != Role.SPECTATOR }
-        val requiredSlots = listOf(
-            Team.RED to Role.SPYMASTER,
-            Team.RED to Role.OPERATIVE,
-            Team.BLUE to Role.SPYMASTER,
-            Team.BLUE to Role.OPERATIVE,
-        )
+        val activePlayers = RoomTeamRules.activePlayers(room.players)
         val canStart = room.status == RoomStatus.LOBBY &&
             room.hostPlayerId == viewerId &&
-            activePlayers.size == 4 &&
-            requiredSlots.all { (slotTeam, slotRole) ->
-                activePlayers.count { it.team == slotTeam && it.role == slotRole } == 1
-            }
+            RoomTeamRules.isReadyToStart(room.players)
 
         val canRandomizeTeams = room.status == RoomStatus.LOBBY &&
             room.hostPlayerId == viewerId &&
-            activePlayers.size == 4
+            RoomTeamRules.canRandomize(activePlayers.size)
 
         return RoomViewDto(
             status = room.status.name,
