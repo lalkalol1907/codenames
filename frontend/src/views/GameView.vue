@@ -137,7 +137,7 @@ function confettiStyle(n: number) {
 
   <p v-else-if="error" class="alert-error" role="alert">{{ error }}</p>
 
-  <div v-else-if="view && game" class="game-layout">
+  <div v-else-if="view && game" class="game-page">
     <p v-if="showReconnectBanner" class="alert-warn" role="status" aria-live="polite">
       {{ localeStore.t('game.reconnecting') }}
     </p>
@@ -151,33 +151,35 @@ function confettiStyle(n: number) {
     </p>
     <p v-if="wsError" class="alert-error" role="alert">{{ wsError }}</p>
 
-    <aside class="panel game-sidebar">
-      <h2 class="section-title">{{ localeStore.t('lobby.players') }}</h2>
-      <PlayerList :players="view.players" :viewer-id="view.viewerId" variant="game" />
-    </aside>
+    <div class="game-layout">
+      <aside class="panel game-sidebar">
+        <h2 class="section-title">{{ localeStore.t('lobby.players') }}</h2>
+        <PlayerList :players="view.players" :viewer-id="view.viewerId" variant="game" />
+      </aside>
 
-    <section class="panel game-panel">
-      <StatusBar :game="game" />
-      <CluePanel :view="view" :game="game" />
-      <Board :view="view" @guess="onGuess" />
-      <Controls :view="view" :game="game" @give-clue="onGiveClue" @end-turn="onEndTurn" />
+      <section class="panel game-panel">
+        <StatusBar :game="game" />
+        <CluePanel :view="view" :game="game" />
+        <Board :view="view" @guess="onGuess" />
+        <Controls :view="view" :game="game" @give-clue="onGiveClue" @end-turn="onEndTurn" />
 
-      <div v-if="game.winner && overlayDismissed" class="game-over">
-        {{ localeStore.t('game.team_wins', localeStore.t(`team.${game.winner}`)) }}
-      </div>
+        <div v-if="game.winner && overlayDismissed" class="game-over">
+          {{ localeStore.t('game.team_wins', localeStore.t(`team.${game.winner}`)) }}
+        </div>
 
-      <!-- Hold-to-reveal toggle -->
-      <div class="game-settings">
-        <label class="game-settings__toggle">
-          <input
-            type="checkbox"
-            :checked="settingsStore.holdToReveal"
-            @change="(e) => settingsStore.setHoldToReveal((e.target as HTMLInputElement).checked)"
-          />
-          {{ localeStore.t('settings.hold_to_reveal') }}
-        </label>
-      </div>
-    </section>
+        <!-- Hold-to-reveal toggle -->
+        <div class="game-settings">
+          <label class="game-settings__toggle">
+            <input
+              type="checkbox"
+              :checked="settingsStore.holdToReveal"
+              @change="(e) => settingsStore.setHoldToReveal((e.target as HTMLInputElement).checked)"
+            />
+            {{ localeStore.t('settings.hold_to_reveal') }}
+          </label>
+        </div>
+      </section>
+    </div>
   </div>
 
   <!-- Game-over overlay -->
