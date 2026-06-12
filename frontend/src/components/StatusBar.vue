@@ -32,15 +32,17 @@ const isBlueActive = computed(() => !props.game.winner && props.game.currentTeam
         'score--winner': game.winner === 'RED',
       }"
     >
-      <span class="score__label">{{ localeStore.t('team.RED') }}</span>
-      <span class="score__num">{{ game.redRemaining }}</span>
-      <div class="score__dots" aria-hidden="true">
-        <span
-          v-for="n in redTotal"
-          :key="n"
-          class="score__dot"
-          :class="{ 'is-found': n <= redFound }"
-        />
+      <div class="score__row">
+        <span class="score__label">{{ localeStore.t('team.RED') }}</span>
+        <span class="score__num">{{ game.redRemaining }}</span>
+        <div class="score__dots" aria-hidden="true">
+          <span
+            v-for="n in redTotal"
+            :key="n"
+            class="score__dot"
+            :class="{ 'is-found': n <= redFound }"
+          />
+        </div>
       </div>
       <span class="sr-only">{{ localeStore.t('game.red_left', game.redRemaining) }}</span>
     </div>
@@ -71,15 +73,17 @@ const isBlueActive = computed(() => !props.game.winner && props.game.currentTeam
         'score--winner': game.winner === 'BLUE',
       }"
     >
-      <span class="score__label">{{ localeStore.t('team.BLUE') }}</span>
-      <span class="score__num">{{ game.blueRemaining }}</span>
-      <div class="score__dots" aria-hidden="true">
-        <span
-          v-for="n in blueTotal"
-          :key="n"
-          class="score__dot"
-          :class="{ 'is-found': n <= blueFound }"
-        />
+      <div class="score__row">
+        <span class="score__label">{{ localeStore.t('team.BLUE') }}</span>
+        <span class="score__num">{{ game.blueRemaining }}</span>
+        <div class="score__dots" aria-hidden="true">
+          <span
+            v-for="n in blueTotal"
+            :key="n"
+            class="score__dot"
+            :class="{ 'is-found': n <= blueFound }"
+          />
+        </div>
       </div>
       <span class="sr-only">{{ localeStore.t('game.blue_left', game.blueRemaining) }}</span>
     </div>

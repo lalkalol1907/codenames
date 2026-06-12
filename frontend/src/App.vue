@@ -12,16 +12,27 @@ const isWide = computed(() => route.name === 'game');
 
 <template>
   <div class="bg-glow" aria-hidden="true" />
-  <header class="site-header">
-    <RouterLink to="/" class="logo">{{ localeStore.t('app.title') }}</RouterLink>
-    <div class="header-controls">
-      <ThemeSwitcher />
-      <form class="locale-form" @submit.prevent>
-        <LocaleSwitcher />
-      </form>
-    </div>
-  </header>
-  <main class="container" :class="{ 'container--wide': isWide }">
-    <RouterView />
-  </main>
+  <div class="app-shell" :class="{ 'app-shell--game': isWide }">
+    <header v-if="!isWide" class="site-header">
+      <RouterLink to="/" class="logo">{{ localeStore.t('app.title') }}</RouterLink>
+      <div class="header-controls">
+        <ThemeSwitcher />
+        <form class="locale-form" @submit.prevent>
+          <LocaleSwitcher />
+        </form>
+      </div>
+    </header>
+    <aside v-else class="app-nav">
+      <RouterLink to="/" class="logo app-nav__logo">{{ localeStore.t('app.title') }}</RouterLink>
+      <div class="app-nav__controls">
+        <ThemeSwitcher />
+        <form class="locale-form" @submit.prevent>
+          <LocaleSwitcher />
+        </form>
+      </div>
+    </aside>
+    <main class="container" :class="{ 'container--wide': isWide }">
+      <RouterView />
+    </main>
+  </div>
 </template>
