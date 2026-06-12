@@ -3,6 +3,8 @@
 services:
   db:
     image: postgres:16-alpine
+    labels:
+      scraper.name: codenames-db
     env_file:
       - .env
     networks:
@@ -24,6 +26,8 @@ services:
 
   redis:
     image: redis:7-alpine
+    labels:
+      scraper.name: codenames-redis
     networks:
       - codenames-network
     environment:
@@ -40,6 +44,8 @@ services:
 
   app:
     image: ${IMAGE_NAME}:${IMAGE_TAG}
+    labels:
+      scraper.name: codenames-app
     env_file:
       - .env
     networks:
@@ -69,6 +75,8 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    labels:
+      scraper.name: codenames-caddy
     networks:
       - codenames-network
     ports:
